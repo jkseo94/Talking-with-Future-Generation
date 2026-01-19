@@ -6,18 +6,14 @@ from datetime import datetime
 import random
 import time
 # -----------------------------
-# Typewriter effect (DEFINE FIRST)
+# iMessage-style thinking (DEFINE FIRST)
 # -----------------------------
-def typewriter_effect(text, delay=0.1):
+def typewriter_effect(text, think_time=1.2):
     placeholder = st.empty()
     placeholder.markdown("…")
-    time.sleep(0.6)
+    time.sleep(think_time)
 
-    typed_text = ""
-    for char in text:
-        typed_text += char
-        placeholder.markdown(typed_text)
-        time.sleep(delay)
+    placeholder.markdown(text)  # 한 번에 전체 메시지 출력
 # -----------------------------
 # Page setup
 # -----------------------------
