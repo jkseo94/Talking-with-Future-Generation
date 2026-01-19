@@ -8,12 +8,18 @@ import time
 # -----------------------------
 # iMessage-style thinking (DEFINE FIRST)
 # -----------------------------
-def typewriter_effect(text, think_time=1.2):
+def thinking_animation(duration=2.0, interval=0.3):
     placeholder = st.empty()
-    placeholder.markdown("…")
-    time.sleep(think_time)
+    dots = ["…", "..", "."]
+    start = time.time()
 
-    placeholder.markdown(text)  # 한 번에 전체 메시지 출력
+    i = 0
+    while time.time() - start < duration:
+        placeholder.markdown(dots[i % len(dots)])
+        time.sleep(interval)
+        i += 1
+
+    return placeholder
 # -----------------------------
 # Page setup
 # -----------------------------
@@ -192,7 +198,8 @@ if (
 
     # 🌍 Assistant typing effect
     with st.chat_message("assistant", avatar="🌍"):
-        typewriter_effect(assistant_message)
+        placeholder = thinking_animation(duration=1.2, interval=0.3)
+        placeholder.markdown(assistant_message)
 
     # Save assistant message AFTER typing
     st.session_state.messages.append(
