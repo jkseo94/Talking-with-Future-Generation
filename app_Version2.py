@@ -8,7 +8,7 @@ import time
 # -----------------------------
 # Typewriter effect (DEFINE FIRST)
 # -----------------------------
-def typewriter_effect(text, delay=0.02):
+def typewriter_effect(text, delay=0.1):
     placeholder = st.empty()
     placeholder.markdown("…")
     time.sleep(0.6)
