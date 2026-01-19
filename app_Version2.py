@@ -4,6 +4,7 @@ import csv
 import os
 from datetime import datetime
 import random
+import time
 
 # -----------------------------
 # Page setup
@@ -21,6 +22,19 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # -----------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+if "stage" not in st.session_state:
+    st.session_state.stage = 1  # Stage 1 = Initialization
+
+if "turn" not in st.session_state:
+    st.session_state.turn = 0
+
+if "finished" not in st.session_state:
+    st.session_state.finished = False
+
+if "finish_code" not in st.session_state:
+    st.session_state.finish_code = None
+
 # -----------------------------
 # Auto-send Welcome message (Stage 1)
 # -----------------------------
@@ -37,18 +51,6 @@ Now, are you ready to dive in?
     st.session_state.messages.append(
         {"role": "assistant", "content": welcome_message}
     )
-    
-if "stage" not in st.session_state:
-    st.session_state.stage = 1  # Stage 1 = Initialization
-
-if "turn" not in st.session_state:
-    st.session_state.turn = 0
-
-if "finished" not in st.session_state:
-    st.session_state.finished = False
-
-if "finish_code" not in st.session_state:
-    st.session_state.finish_code = None
 
 # -----------------------------
 # System Prompt (YOUR PROMPT)
@@ -117,6 +119,19 @@ Here are some issues to avoid in the conversation with the users:
 1. Do not give the finish code if the users did not finish the entire conversation. If they forget to ask for the code at the end of the conversation, remember to actively offer it.
 2. Ensure the user has engaged with the simulation stage.
 """
+# -----------------------------
+# Typewriter effect (with …)
+# -----------------------------
+def typewriter_effect(text, delay=0.02):
+    placeholder = st.empty()
+    placeholder.markdown("…")
+    time.sleep(0.6)
+
+    typed_text = ""
+    for char in text:
+        typed_text += char
+        placeholder.markdown(typed_text)
+        time.sleep(delay)
 
 # -----------------------------
 # Display chat history
@@ -183,6 +198,9 @@ if user_input and not st.session_state.finished:
     if st.session_state.turn >= 5 and "end" in user_input.lower():
         st.session_state.finish_code = str(random.randint(10000, 99999))
         st.session_state.finished = True
+
+    # 🔥 Rerun to refresh UI
+    st.rerun()
 
 # -----------------------------
 # Finish code display
