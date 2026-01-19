@@ -8,7 +8,7 @@ import time
 # -----------------------------
 # iMessage-style thinking (DEFINE FIRST)
 # -----------------------------
-def thinking_animation(duration=2.0, interval=0.3):
+def thinking_animation(duration=2.8, interval=0.4):
     placeholder = st.empty()
     dots = ["…", "..", "."]
     start = time.time()
