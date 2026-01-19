@@ -157,7 +157,6 @@ if user_input and not st.session_state.finished:
         writer = csv.writer(f)
         writer.writerow([
             datetime.now().isoformat(),
-            participant_id,
             st.session_state.stage,
             st.session_state.turn,
             user_input,
