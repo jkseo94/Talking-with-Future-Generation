@@ -5,7 +5,19 @@ import os
 from datetime import datetime
 import random
 import time
+# -----------------------------
+# Typewriter effect (DEFINE FIRST)
+# -----------------------------
+def typewriter_effect(text, delay=0.02):
+    placeholder = st.empty()
+    placeholder.markdown("…")
+    time.sleep(0.6)
 
+    typed_text = ""
+    for char in text:
+        typed_text += char
+        placeholder.markdown(typed_text)
+        time.sleep(delay)
 # -----------------------------
 # Page setup
 # -----------------------------
@@ -135,17 +147,36 @@ for msg in st.session_state.messages:
 # -----------------------------
 user_input = st.chat_input("Type your message here")
 
+# 1️⃣ USER MESSAGE: 즉시 화면에 보이게 처리
 if user_input and not st.session_state.finished:
-    # Save user message
     st.session_state.messages.append(
         {"role": "user", "content": user_input}
     )
 
+    # 🔥 유저 메시지를 바로 렌더링하기 위해 즉시 rerun
+    st.rerun()
+
+
+# -----------------------------
+# ASSISTANT RESPONSE GENERATION
+# -----------------------------
+if (
+    not st.session_state.finished
+    and len(st.session_state.messages) > 0
+    and st.session_state.messages[-1]["role"] == "user"
+):
+
+    last_user_input = st.session_state.messages[-1]["content"]
+
     # Stage & turn management
     if st.session_state.stage == 1:
-        if any(word in user_input.lower() for word in ["yes", "ready", "sure", "ok", "start"]):
+        if any(word in last_user_input.lower()
+               for word in ["yes", "ready", "sure", "ok", "start"]):
             st.session_state.stage = 2
             st.session_state.turn = 1
+        else:
+            # Stage 1에서는 준비 확인만 받고 응답 생성
+            st.session_state.stage = 1
     else:
         st.session_state.turn += 1
 
@@ -163,11 +194,11 @@ if user_input and not st.session_state.finished:
 
     assistant_message = response.choices[0].message.content
 
-    # Show assistant message with typewriter effect inside chat_message
+    # 🌍 Assistant typing effect
     with st.chat_message("assistant", avatar="🌍"):
-        typewriter_effect(assistant_message)   # <-- 여기서 실제로 호출합니다.
+        typewriter_effect(assistant_message)
 
-    # Then save assistant message to session history
+    # Save assistant message AFTER typing
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
@@ -180,17 +211,18 @@ if user_input and not st.session_state.finished:
             datetime.now().isoformat(),
             st.session_state.stage,
             st.session_state.turn,
-            user_input,
+            last_user_input,
             assistant_message
         ])
 
     # Finish code logic
-    if st.session_state.turn >= 5 and "end" in user_input.lower():
+    if st.session_state.turn >= 5 and "end" in last_user_input.lower():
         st.session_state.finish_code = str(random.randint(10000, 99999))
         st.session_state.finished = True
 
-    # 🔥 Rerun to refresh UI
+    # 🔥 다시 rerun → 타이핑된 메시지를 히스토리로 고정
     st.rerun()
+
 
 # -----------------------------
 # Finish code display
