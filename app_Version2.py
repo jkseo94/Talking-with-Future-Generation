@@ -21,7 +21,23 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # -----------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
+# -----------------------------
+# Auto-send Welcome message (Stage 1)
+# -----------------------------
+if len(st.session_state.messages) == 0:
+    welcome_message = """Welcome!
+Have you ever wondered what your daily choices will resonate decades from now?
 
+By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges that a person born today will face in 2060 and embodied this into a conversational partner.
+
+In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
+
+Now, are you ready to dive in?
+"""
+    st.session_state.messages.append(
+        {"role": "assistant", "content": welcome_message}
+    )
+    
 if "stage" not in st.session_state:
     st.session_state.stage = 1  # Stage 1 = Initialization
 
@@ -106,8 +122,12 @@ Here are some issues to avoid in the conversation with the users:
 # Display chat history
 # -----------------------------
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    if msg["role"] == "assistant":
+        with st.chat_message("assistant", avatar="🌍"):
+            st.markdown(msg["content"])
+    else:
+        with st.chat_message("user"):
+            st.markdown(msg["content"])
 
 # -----------------------------
 # User input
@@ -146,10 +166,6 @@ if user_input and not st.session_state.finished:
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
-
-    # Display assistant message
-    with st.chat_message("assistant"):
-        st.markdown(assistant_message)
 
     # Save logs
     os.makedirs("logs", exist_ok=True)
