@@ -120,20 +120,6 @@ Here are some issues to avoid in the conversation with the users:
 2. Ensure the user has engaged with the simulation stage.
 """
 # -----------------------------
-# Typewriter effect (with …)
-# -----------------------------
-def typewriter_effect(text, delay=0.02):
-    placeholder = st.empty()
-    placeholder.markdown("…")
-    time.sleep(0.6)
-
-    typed_text = ""
-    for char in text:
-        typed_text += char
-        placeholder.markdown(typed_text)
-        time.sleep(delay)
-
-# -----------------------------
 # Display chat history
 # -----------------------------
 for msg in st.session_state.messages:
@@ -171,13 +157,17 @@ if user_input and not st.session_state.finished:
 
     # Call OpenAI
     response = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         messages=messages_for_api
     )
 
     assistant_message = response.choices[0].message.content
 
-    # Save assistant message
+    # Show assistant message with typewriter effect inside chat_message
+    with st.chat_message("assistant", avatar="🌍"):
+        typewriter_effect(assistant_message)   # <-- 여기서 실제로 호출합니다.
+
+    # Then save assistant message to session history
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
