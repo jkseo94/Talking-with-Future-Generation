@@ -66,19 +66,25 @@ if "finish_code" not in st.session_state:
 # Auto-send Welcome message (Stage 1)
 # -----------------------------
 if len(st.session_state.messages) == 0:
-    welcome_message = """Welcome!
-Have you ever wondered what your daily choices will resonate decades from now?
 
-By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges that a person born today will face in 2060 and embodied this into a conversational partner.
-
-In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
-
-Now, are you ready to dive in?
-"""
-    st.session_state.messages.append(
-        {"role": "assistant", "content": welcome_message}
+    welcome_short = (
+        "Welcome!\n"
+        "Have you ever wondered what your daily choices will resonate decades from now?"
     )
 
+    welcome_explain = (
+        "By processing data from current global economic forecasts and IPCC climate "
+        "projections, we have modeled the daily conditions and challenges that a person "
+        "born today will face in 2060 and embodied this into a conversational partner."
+    )
+
+    # 1️⃣ 첫 번째 Welcome 메시지
+    st.session_state.messages.append(
+        {"role": "assistant", "content": welcome_short}
+    )
+
+    # 화면에 즉시 반영
+    st.rerun()
 # -----------------------------
 # System Prompt (YOUR PROMPT)
 # -----------------------------
