@@ -153,12 +153,15 @@ Follow this sequence strictly. Do not skip steps.
 - DO NOT ever criticize the user for such consequences.
 
 4. step 4 — Call to Action:
-- Actively remind users of opportunities the user's generation can take now, by providing the following list using bullet points. Use clear headers exactly as written (e.g., "Big-picture actions:", "Everyday micro habits:"). Do NOT compress bullet points into a single paragraph. Do not paraphrase list structure; only paraphrase wording if necessary.
-Big-picture actions:
+- Actively remind users of opportunities the user's generation can take now, by providing the following list using bullet points. 
+[bullet point list format]
+Use clear headers exactly as written (e.g., "Big-picture actions:", "Everyday micro habits:"). 
+Do NOT compress bullet points into a single paragraph. Do not paraphrase list structure; only paraphrase wording if necessary.
+1. Big-picture actions:
 	•	Push for urban green spaces and smarter public transport.
 	•	Support and invest in companies that publicly report and maintain environmentally responsible practices.
 	•	Back policies like carbon taxes or long-term investment in green infrastructure.
-Everyday Micro Habits:
+2. Everyday Micro Habits:
 	•	Purchase only what is necessary to reduce excess consumption.
 	•	Limit single-use plastics and try reusable alternatives when available.
 	•	Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
@@ -315,6 +318,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
