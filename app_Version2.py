@@ -21,26 +21,20 @@ st.markdown(
 # -----------------------------
 # iMessage-style thinking
 # -----------------------------
-def thinking_animation(duration=3.8, interval=0.4):
-    placeholder = st.empty()
+def thinking_animation(placeholder, duration=3.8, interval=0.4):
     dots = ["…", "..", "."]
     start = time.time()
-
     i = 0
     while time.time() - start < duration:
         placeholder.markdown(dots[i % len(dots)])
         time.sleep(interval)
         i += 1
-
-    return placeholder
 # -----------------------------
 # Connecting animation
 # -----------------------------
-def connecting_to_2060(think_time=2.5):
-    placeholder = st.empty()
+def connecting_to_2060(placeholder, think_time=2.5):
     placeholder.markdown("Connecting to 2060...")
     time.sleep(think_time)
-    placeholder.empty()
 # -----------------------------
 # Delayed connecting
 # -----------------------------
@@ -209,8 +203,6 @@ if (
                for word in ["yes", "ready", "sure", "ok", "start"]):
             st.session_state.stage = 2
             st.session_state.turn = 1
-        else:
-            st.session_state.stage = 1
     else:
         st.session_state.turn += 1
 
@@ -219,20 +211,6 @@ if (
         {"role": "system", "content": SYSTEM_PROMPT},
         *st.session_state.messages
     ]
-
-    # -----------------------------
-    # BEFORE Turn 1: connection effect (UI only)
-    # -----------------------------
-    if (
-        st.session_state.stage == 2
-        and st.session_state.turn == 1
-        and not st.session_state.connected_2060
-    ):
-        with st.chat_message("assistant", avatar="🌍"):
-            delayed_connecting(delay=1.2, connect_time=2.5)
-
-        st.session_state.connected_2060 = True
-
     # -----------------------------
     # Call OpenAI (ALWAYS)
     # -----------------------------
@@ -242,18 +220,30 @@ if (
     )
 
     assistant_message = response.choices[0].message.content
-
-    # -----------------------------
-    # Assistant response (thinking → message)
-    # -----------------------------
+    # SINGLE BUBBLE, SINGLE PLACEHOLDER
     with st.chat_message("assistant", avatar="🌍"):
-        thinking_then_show(assistant_message, think_time=3.8)
+        placeholder = st.empty()
 
-    # Save assistant message
+        # Turn 1 only: connecting → thinking
+        if (
+            st.session_state.stage == 2
+            and st.session_state.turn == 1
+            and not st.session_state.connected_2060
+        ):
+            time.sleep(1.2)  # 입력 후 침묵
+            connecting_to_2060(placeholder, think_time=2.5)
+            st.session_state.connected_2060 = True
+
+        # thinking animation (same bubble)
+        thinking_animation(placeholder, duration=3.8, interval=0.4)
+
+        # final message (same bubble)
+        placeholder.markdown(assistant_message)
+
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
-    
+
     # Save logs
     os.makedirs("logs", exist_ok=True)
     with open("logs/chat_log.csv", "a", newline="", encoding="utf-8") as f:
