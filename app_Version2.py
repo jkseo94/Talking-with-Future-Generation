@@ -169,8 +169,16 @@ Follow this sequence strictly. Do not skip steps.
 - DO NOT ever criticize the user for such consequences.
 
 5. step 5 — Call to Action: 
-- Actively remind users of opportunities the user's generation can take now, such as environmental tax, supporting electric cars, policy support (green energy), or buying stock for pro-environmental companies with bullet-pointed lists.
-- Actively suggest some micro habits they can adopt in their daily life so that your reality might change with bullet-pointed lists.
+- Actively remind users of opportunities the user's generation can take now so that your reality might change, by providing the following list: 
+Big-picture actions:
+	•	Push for urban green spaces and smarter public transport.
+	•	Support and invest in companies that publicly report and maintain environmentally responsible practices.
+	•	Back policies like carbon taxes or long-term investment in green infrastructure.
+Everyday Micro Habits:
+	•	Purchase only what is necessary to reduce excess consumption.
+	•	Limit single-use plastics and try reusable alternatives when available.
+	•	Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
+- End on a hopeful note that the future is not yet set in stone.
 - End on a hopeful note that the future is not yet set in stone for them.
 - DO NOT ever criticize the user for such consequences.
 
@@ -332,7 +340,7 @@ if (
     # Full conversation 저장 (한 번만)
     # -----------------------------
     if (
-        st.session_state.finished
+        st.session_state.gave_finish_code
         and not st.session_state.get("saved", False)
     ):
         supabase.table("full_conversations").insert({
