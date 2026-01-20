@@ -162,6 +162,9 @@ Everyday Micro Habits:
 	•	Purchase only what is necessary to reduce excess consumption.
 	•	Limit single-use plastics and try reusable alternatives when available.
 	•	Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
+	constraints:
+	- Output must visually resemble a checklist or briefing note.
+	- Do not paraphrase list structure; only paraphrase wording if necessary.
 - End on a hopeful note that the future is not yet set in stone.
 - DO NOT ever criticize the user for such consequences.
 
@@ -326,4 +329,5 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
