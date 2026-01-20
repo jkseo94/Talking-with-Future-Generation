@@ -280,22 +280,13 @@ if (
     )
 
     # -----------------------------
-    # Safety guard (rerun 대비)
-    # -----------------------------
-    if st.session_state.stage is None:
-        st.session_state.stage = 1
-
-    if st.session_state.turn is None or st.session_state.turn < 1:
-        st.session_state.turn = 1
-
-    # -----------------------------
     # Supabase insert (항상 실행)
     # -----------------------------
     insert_log(
-        finish_code=st.session_state.get("finish_code"),
+        finish_code=st.session_state.get.finish_code,
         stage=st.session_state.stage,
         turn=st.session_state.turn,
-        user_message=last_user_input or "",
+        user_message=last_user_input,
         assistant_message=assistant_message
     )
 
