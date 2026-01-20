@@ -66,11 +66,11 @@ if "finish_code" not in st.session_state:
 if "welcome_step" not in st.session_state:
     st.session_state.welcome_step = 0
 # -----------------------------
-# Stage 1: Auto-send Welcome messages (2-step)
+# Stage 1: Staggered Welcome Messages
 # -----------------------------
 if st.session_state.stage == 1:
 
-    # Step 1: Short welcome question
+    # STEP 0 → STEP 1: 첫 번째 Welcome 말풍선
     if st.session_state.welcome_step == 0:
         st.session_state.messages.append(
             {
@@ -84,28 +84,27 @@ if st.session_state.stage == 1:
         st.session_state.welcome_step = 1
         st.rerun()
 
-    # Step 2: Explanation message (after thinking animation)
+    # STEP 1 → STEP 2: 생각 중 애니메이션만 표시
     elif st.session_state.welcome_step == 1:
         with st.chat_message("assistant", avatar="🌍"):
-            placeholder = thinking_animation(duration=1.4, interval=0.35)
-            placeholder.markdown(
-                "By processing data from current global economic forecasts and IPCC climate "
-                "projections, we have modeled the daily conditions and challenges that a person "
-                "born today will face in 2060 and embodied this into a conversational partner."
-            )
-
-        st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": (
-                    "By processing data from current global economic forecasts and IPCC climate "
-                    "projections, we have modeled the daily conditions and challenges that a person "
-                    "born today will face in 2060 and embodied this into a conversational partner."
-                )
-            }
-        )
+            thinking_animation(duration=1.5, interval=0.35)
 
         st.session_state.welcome_step = 2
+        st.rerun()
+
+    # STEP 2 → STEP 3: 두 번째 Welcome 말풍선
+    elif st.session_state.welcome_step == 2:
+        explanation_text = (
+            "By processing data from current global economic forecasts and IPCC climate "
+            "projections, we have modeled the daily conditions and challenges that a person "
+            "born today will face in 2060 and embodied this into a conversational partner."
+        )
+
+        st.session_state.messages.append(
+            {"role": "assistant", "content": explanation_text}
+        )
+
+        st.session_state.welcome_step = 3
         st.rerun()
 # -----------------------------
 # System Prompt (YOUR PROMPT)
@@ -188,7 +187,7 @@ for msg in st.session_state.messages:
 # -----------------------------
 # User input
 # -----------------------------
-if st.session_state.stage == 1 and st.session_state.welcome_step < 2:
+if st.session_state.stage == 1 and st.session_state.welcome_step < 3:
     user_input = None
 else:
     user_input = st.chat_input("Type your message here")
