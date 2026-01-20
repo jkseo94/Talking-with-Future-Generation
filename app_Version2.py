@@ -34,6 +34,22 @@ def thinking_animation(duration=3.8, interval=0.4):
 
     return placeholder
 # -----------------------------
+# Connecting animation
+# -----------------------------
+def connecting_to_2060(think_time=2.5):
+    placeholder = st.empty()
+    placeholder.markdown("connecting to 2060...")
+    time.sleep(think_time)
+    placeholder.empty()
+# -----------------------------
+# Thinking → show (single bubble, no typing)
+# -----------------------------
+def thinking_then_show(text, think_time=3.8):
+    placeholder = st.empty()
+    placeholder.markdown("…")
+    time.sleep(think_time)
+    placeholder.markdown(text)
+# -----------------------------
 # Page setup
 # -----------------------------
 st.set_page_config(page_title="A window into the future", layout="centered")
@@ -53,11 +69,6 @@ if "stage" not in st.session_state:
     
 if "connected_2060" not in st.session_state:
     st.session_state.connected_2060 = False
-def connecting_to_2060(think_time=2.5):
-    placeholder = st.empty()
-    placeholder.markdown("connecting to 2060...")
-    time.sleep(think_time)
-    placeholder.empty()
     
 if "turn" not in st.session_state:
     st.session_state.turn = 0
@@ -176,8 +187,6 @@ if user_input and not st.session_state.finished:
 
     #유저 메시지를 바로 렌더링하기 위해 즉시 rerun
     st.rerun()
-
-
 # -----------------------------
 # ASSISTANT RESPONSE GENERATION
 # -----------------------------
