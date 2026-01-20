@@ -70,7 +70,7 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # -----------------------------
 supabase = create_client(
     st.secrets["SUPABASE_URL"],
-    st.secrets["SUPABASE_ANON_KEY"]
+    st.secrets["SUPABASE_SERVICE_KEY"]
 )
 
 # -----------------------------
