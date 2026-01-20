@@ -70,7 +70,6 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # -----------------------------
 supabase = create_client(
     st.secrets["SUPABASE_URL"],
-    st.secrets["SUPABASE_ANON_KEY"]
     st.secrets["SUPABASE_SERVICE_KEY"]
 )
 
@@ -240,39 +239,25 @@ if (
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = st.empty()
 
-        # Turn 1: connecting → thinking
-        if (
-            st.session_state.stage == 2
-            and st.session_state.turn == 1
-            and not st.session_state.connected_2060
-        ):
-            time.sleep(1.2)
-            connecting_to_2060(placeholder, think_time=2.5)
-            st.session_state.connected_2060 = True
-        else:
-            # Turn 2+ : 거의 즉시 …
-            time.sleep(0.2)
+        # 0.2초 후 Connecting
+        time.sleep(0.2)
+        placeholder.markdown("Connecting to 2060...")
+        time.sleep(1.5)
 
-        # -----------------------------
-        # OpenAI call (thinking과 겹치게)
-        # -----------------------------
-        thinking_start = time.time()
+        # iMessage-style thinking dots
+        thinking_animation(placeholder, duration=1.8)
 
-        response = client.chat.completions.create(
+        # OpenAI 호출
+        response = client.chat.responses.create(
             model="gpt-4.1",
-            messages=messages_for_api
+            input=messages_for_api
         )
 
-        assistant_message = response.choices[0].message.content or ""
+        assistant_message = response.output_text
 
-        # thinking 최소 시간 보장
-        elapsed = time.time() - thinking_start
-        if elapsed < 1.0:
-            time.sleep(1.0 - elapsed)
-
-        # 최종 메시지 (같은 말풍선)
+        # 메시지를 한 번에 출력
         placeholder.markdown(assistant_message)
-
+        
     # -----------------------------
     # Session history 저장
     # -----------------------------
@@ -294,16 +279,25 @@ if (
     # -----------------------------
     # Finish code logic
     # -----------------------------
-    if st.session_state.turn >= 5 and "end" in last_user_input.lower():
+    if st.session_state.turn >= 5:
         st.session_state.finished = True
 
     # -----------------------------
-    # rerun (딱 한 번, 맨 마지막)
+    # Full conversation 저장 (한 번만)
     # -----------------------------
-
+    if (
+        st.session_state.finished
+        and not st.session_state.get("saved", False)
+    ):
+        supabase.table("full_conversations").insert({
+            "finish_code": st.session_state.finish_code,
             "full_conversation": st.session_state.messages,
             "finished_at": datetime.utcnow().isoformat()
         }).execute()
+
         st.session_state.saved = True
 
+    # -----------------------------
+    # rerun (항상 맨 마지막)
+    # -----------------------------
     st.rerun()
