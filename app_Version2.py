@@ -5,9 +5,6 @@ import os
 from datetime import datetime
 import random
 import time
-
-if "welcome_time" not in st.session_state:
-    st.session_state.welcome_time = None
 # -----------------------------
 # UI/UX
 # -----------------------------
@@ -66,56 +63,22 @@ if "finish_code" not in st.session_state:
     st.session_state.finish_code = None
 
 # -----------------------------
-if "welcome_step" not in st.session_state:
-    st.session_state.welcome_step = 0
+# Auto-send Welcome message (Stage 1)
 # -----------------------------
-# Stage 1: Staggered Welcome Messages
-# -----------------------------
-# -----------------------------
-# Stage 1: Timed Welcome Messages (WORKING VERSION)
-# -----------------------------
-if st.session_state.stage == 1:
+if len(st.session_state.messages) == 0:
+    welcome_message = """Welcome!
+Have you ever wondered what your daily choices will resonate decades from now?
 
-    # 첫 Welcome 메시지 (히스토리에 저장)
-    if len(st.session_state.messages) == 0:
-        st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": (
-                    "Welcome! Have you ever wondered what your daily choices "
-                    "will resonate decades from now?"
-                )
-            }
-        )
-        st.session_state.welcome_time = time.time()
-        st.rerun()
+By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges that a person born today will face in 2060 and embodied this into a conversational partner.
 
-    # 두 번째 메시지: 일정 시간 지난 후에만 화면에 표시
-    elif (
-        st.session_state.welcome_time is not None
-        and time.time() - st.session_state.welcome_time < 1.6
-    ):
-        with st.chat_message("assistant", avatar="🌍"):
-            thinking_animation(duration=1.4, interval=0.35)
+In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
 
-    # 충분한 시간 후, 두 번째 Welcome을 히스토리에 저장
-    elif (
-        st.session_state.welcome_time is not None
-        and time.time() - st.session_state.welcome_time >= 1.6
-        and len(st.session_state.messages) == 1
-    ):
-        st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": (
-                    "By processing data from current global economic forecasts and IPCC climate "
-                    "projections, we have modeled the daily conditions and challenges that a person "
-                    "born today will face in 2060 and embodied this into a conversational partner."
-                )
-            }
-        )
-        st.session_state.welcome_time = None
-        st.rerun()
+Now, are you ready to dive in?
+"""
+    st.session_state.messages.append(
+        {"role": "assistant", "content": welcome_message}
+    )
+
 # -----------------------------
 # System Prompt (YOUR PROMPT)
 # -----------------------------
@@ -197,33 +160,18 @@ for msg in st.session_state.messages:
 # -----------------------------
 # User input
 # -----------------------------
-if st.session_state.stage == 1 and len(st.session_state.messages) < 2:
-    user_input = None
-else:
-    user_input = st.chat_input("Type your message here")
+user_input = st.chat_input("Type your message here")
 
-# -----------------------------
-# USER MESSAGE HANDLING
-# -----------------------------
+#USER MESSAGE: 즉시 화면에 보이게 처리
 if user_input and not st.session_state.finished:
-
-    # user 메시지 저장
     st.session_state.messages.append(
         {"role": "user", "content": user_input}
     )
 
-    # Stage 1 → Stage 2 전환 판단
-    if (
-        st.session_state.stage == 1
-        and st.session_state.welcome_step == 2
-        and any(word in user_input.lower()
-                for word in ["yes", "ready", "sure", "ok", "start"])
-    ):
-        st.session_state.stage = 2
-        st.session_state.turn = 1
-
-    # user 메시지를 즉시 화면에 반영
+    #유저 메시지를 바로 렌더링하기 위해 즉시 rerun
     st.rerun()
+
+
 # -----------------------------
 # ASSISTANT RESPONSE GENERATION
 # -----------------------------
@@ -261,7 +209,7 @@ if (
 
     assistant_message = response.choices[0].message.content
 
-    # 🌍 Assistant typing effect
+    # Assistant typing effect
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = thinking_animation(duration=3.8, interval=0.4)
         placeholder.markdown(assistant_message)
@@ -288,10 +236,8 @@ if (
         st.session_state.finish_code = str(random.randint(10000, 99999))
         st.session_state.finished = True
 
-    # 🔥 다시 rerun → 타이핑된 메시지를 히스토리로 고정
+    #다시 rerun → 타이핑된 메시지를 히스토리로 고정
     st.rerun()
-
-
 # -----------------------------
 # Finish code display
 # -----------------------------
