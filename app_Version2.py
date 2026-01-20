@@ -19,7 +19,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 # -----------------------------
-# iMessage-style thinking (DEFINE FIRST)
+# iMessage-style thinking
 # -----------------------------
 def thinking_animation(duration=3.8, interval=0.4):
     placeholder = st.empty()
@@ -38,9 +38,15 @@ def thinking_animation(duration=3.8, interval=0.4):
 # -----------------------------
 def connecting_to_2060(think_time=2.5):
     placeholder = st.empty()
-    placeholder.markdown("connecting to 2060...")
+    placeholder.markdown("Connecting to 2060...")
     time.sleep(think_time)
     placeholder.empty()
+# -----------------------------
+# Delayed connecting
+# -----------------------------
+def delayed_connecting(delay=1.2, connect_time=2.5):
+    time.sleep(delay)
+    connecting_to_2060(think_time=connect_time)
 # -----------------------------
 # Thinking → show (single bubble, no typing)
 # -----------------------------
@@ -173,7 +179,6 @@ for msg in st.session_state.messages:
     else:
         with st.chat_message("user"):
             st.markdown(msg["content"])
-
 # -----------------------------
 # User input
 # -----------------------------
@@ -224,7 +229,7 @@ if (
         and not st.session_state.connected_2060
     ):
         with st.chat_message("assistant", avatar="🌍"):
-            connecting_to_2060(think_time=2.5)
+            delayed_connecting(delay=1.2, connect_time=2.5)
 
         st.session_state.connected_2060 = True
 
