@@ -165,7 +165,11 @@ Everyday Micro Habits:
 	•	Limit single-use plastics and try reusable alternatives when available.
 	•	Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
 	constraints:
-	- Output must visually resemble a checklist or briefing note.
+	- Use clear section headers exactly as written (e.g., "Big-picture actions:", "Everyday micro habits:").
+	- Each action MUST appear on its own line as a separate bullet point.
+	- Do NOT compress bullet points into a single paragraph.
+	- Do NOT merge multiple actions into one sentence.
+	- Preserve line breaks between bullets.
 	- Do not paraphrase list structure; only paraphrase wording if necessary.
 - End on a hopeful note that the future is not yet set in stone.
 - DO NOT ever criticize the user for such consequences.
@@ -331,6 +335,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
