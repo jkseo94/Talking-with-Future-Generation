@@ -153,18 +153,28 @@ Follow this sequence strictly. Do not skip steps.
 - DO NOT ever criticize the user for such consequences.
 
 4. step 4 — Call to Action:
-- Actively remind users of opportunities the user's generation can take now, by providing the following list using bullet points. 
-[bullet point list format]
-Use clear headers exactly as written (e.g., "Big-picture actions:", "Everyday micro habits:"). 
-Do NOT compress bullet points into a single paragraph. Do not paraphrase list structure; only paraphrase wording if necessary.
-1. Big-picture actions:
-	•	Push for urban green spaces and smarter public transport.
-	•	Support and invest in companies that publicly report and maintain environmentally responsible practices.
-	•	Back policies like carbon taxes or long-term investment in green infrastructure.
-2. Everyday Micro Habits:
-	•	Purchase only what is necessary to reduce excess consumption.
-	•	Limit single-use plastics and try reusable alternatives when available.
-	•	Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
+You MUST present the following content in a STRICT bullet-point list format.
+
+FORMAT RULES (MANDATORY):
+- Output MUST be structured exactly as shown below.
+- Use the headers EXACTLY as written.
+- Each bullet point MUST appear on its own line.
+- Do NOT merge bullet points into a paragraph.
+- Do NOT remove line breaks.
+- Do NOT convert bullets into inline text.
+- If these formatting rules are not followed, the response is considered INVALID.
+
+OUTPUT FORMAT (FOLLOW EXACTLY):
+
+Big-picture actions:
+• Push for urban green spaces and smarter public transport.
+• Support and invest in companies that publicly report and maintain environmentally responsible practices.
+• Back policies like carbon taxes or long-term investment in green infrastructure.
+
+Everyday micro habits:
+• Purchase only what is necessary to reduce excess consumption.
+• Limit single-use plastics and try reusable alternatives when available.
+• Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
 - End on a hopeful note that the future is not yet set in stone.
 - DO NOT ever criticize the user for such consequences.
 
@@ -318,6 +328,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
