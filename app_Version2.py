@@ -5,6 +5,9 @@ import os
 from datetime import datetime
 import random
 import time
+
+if "welcome_time" not in st.session_state:
+    st.session_state.welcome_time = None
 # -----------------------------
 # UI/UX
 # -----------------------------
@@ -68,10 +71,13 @@ if "welcome_step" not in st.session_state:
 # -----------------------------
 # Stage 1: Staggered Welcome Messages
 # -----------------------------
+# -----------------------------
+# Stage 1: Timed Welcome Messages (WORKING VERSION)
+# -----------------------------
 if st.session_state.stage == 1:
 
-    # STEP 0 → STEP 1: 첫 번째 Welcome 말풍선
-    if st.session_state.welcome_step == 0:
+    # 첫 Welcome 메시지 (히스토리에 저장)
+    if len(st.session_state.messages) == 0:
         st.session_state.messages.append(
             {
                 "role": "assistant",
@@ -81,30 +87,34 @@ if st.session_state.stage == 1:
                 )
             }
         )
-        st.session_state.welcome_step = 1
+        st.session_state.welcome_time = time.time()
         st.rerun()
 
-    # STEP 1 → STEP 2: 생각 중 애니메이션만 표시
-    elif st.session_state.welcome_step == 1:
+    # 두 번째 메시지: 일정 시간 지난 후에만 화면에 표시
+    elif (
+        st.session_state.welcome_time is not None
+        and time.time() - st.session_state.welcome_time < 1.6
+    ):
         with st.chat_message("assistant", avatar="🌍"):
-            thinking_animation(duration=1.5, interval=0.35)
+            thinking_animation(duration=1.4, interval=0.35)
 
-        st.session_state.welcome_step = 2
-        st.rerun()
-
-    # STEP 2 → STEP 3: 두 번째 Welcome 말풍선
-    elif st.session_state.welcome_step == 2:
-        explanation_text = (
-            "By processing data from current global economic forecasts and IPCC climate "
-            "projections, we have modeled the daily conditions and challenges that a person "
-            "born today will face in 2060 and embodied this into a conversational partner."
-        )
-
+    # 충분한 시간 후, 두 번째 Welcome을 히스토리에 저장
+    elif (
+        st.session_state.welcome_time is not None
+        and time.time() - st.session_state.welcome_time >= 1.6
+        and len(st.session_state.messages) == 1
+    ):
         st.session_state.messages.append(
-            {"role": "assistant", "content": explanation_text}
+            {
+                "role": "assistant",
+                "content": (
+                    "By processing data from current global economic forecasts and IPCC climate "
+                    "projections, we have modeled the daily conditions and challenges that a person "
+                    "born today will face in 2060 and embodied this into a conversational partner."
+                )
+            }
         )
-
-        st.session_state.welcome_step = 3
+        st.session_state.welcome_time = None
         st.rerun()
 # -----------------------------
 # System Prompt (YOUR PROMPT)
@@ -187,7 +197,7 @@ for msg in st.session_state.messages:
 # -----------------------------
 # User input
 # -----------------------------
-if st.session_state.stage == 1 and st.session_state.welcome_step < 3:
+if st.session_state.stage == 1 and len(st.session_state.messages) < 2:
     user_input = None
 else:
     user_input = st.chat_input("Type your message here")
