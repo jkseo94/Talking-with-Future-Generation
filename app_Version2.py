@@ -48,21 +48,13 @@ def insert_log(
     user_message,
     assistant_message
 ):
-    try:
-        result = supabase.table("chat_logs").insert({
-            "finish_code": finish_code,
-            "timestamp": datetime.utcnow().isoformat(),
-            "stage": stage,
-            "turn": turn,
-            "user_message": user_message,
-            "assistant_message": assistant_message
-        }).execute()
-
-        st.write("✅ Supabase insert success:", result)
-
-    except Exception as e:
-        st.error("❌ Supabase insert failed")
-        st.error(str(e))
+    supabase.table("chat_logs").insert({
+        "finish_code": finish_code,
+        "stage": stage,
+        "turn": turn,
+        "user_message": user_message,
+        "assistant_message": assistant_message
+    }).execute()
 # -----------------------------
 # Page setup
 # -----------------------------
@@ -228,64 +220,62 @@ if (
     else:
         st.session_state.turn += 1
 
-    # Prepare OpenAI messages
     messages_for_api = [
         {"role": "system", "content": SYSTEM_PROMPT},
         *st.session_state.messages
     ]
-    # -----------------------------
-    # Call OpenAI (ALWAYS)
-    # -----------------------------
-    response = client.chat.completions.create(
-        model="gpt-4.1",
-        messages=messages_for_api
-    )
 
-    assistant_message = response.choices[0].message.content
-    # SINGLE BUBBLE, SINGLE PLACEHOLDER
+    # assistant bubble
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = st.empty()
 
-        # Turn 1 only: connecting → thinking
+        # Turn 1: connecting → thinking
         if (
             st.session_state.stage == 2
             and st.session_state.turn == 1
             and not st.session_state.connected_2060
         ):
-            time.sleep(1.2)  # 입력 후 침묵
+            time.sleep(1.2)
             connecting_to_2060(placeholder, think_time=2.5)
             st.session_state.connected_2060 = True
+        else:
+            # Turn 2+ : 거의 즉시 말풍선 등장
+            time.sleep(0.2)
 
-        # thinking animation (same bubble)
-        thinking_animation(placeholder, duration=3.8, interval=0.4)
+        # thinking 시작
+        thinking_start = time.time()
 
-        # final message (same bubble)
+        # Call OpenAI
+        response = client.chat.completions.create(
+            model="gpt-4.1",
+            messages=messages_for_api
+        )
+        assistant_message = response.choices[0].message.content
+
+        # thinking이 너무 짧으면 최소 1초 보장
+        elapsed = time.time() - thinking_start
+        if elapsed < 1.0:
+            time.sleep(1.0 - elapsed)
+
+        # 최종 메시지
         placeholder.markdown(assistant_message)
 
+    # 세션 저장
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
+
     insert_log(
-    finish_code=st.session_state.finish_code,
-    stage=st.session_state.stage,
-    turn=st.session_state.turn,
-    user_message=last_user_input,
-    assistant_message=assistant_message
+        finish_code=st.session_state.finish_code,
+        stage=st.session_state.stage,
+        turn=st.session_state.turn,
+        user_message=last_user_input,
+        assistant_message=assistant_message
     )
 
     # Finish code logic
     if st.session_state.turn >= 5 and "end" in last_user_input.lower():
-        st.session_state.finish_code = str(random.randint(10000, 99999))
         st.session_state.finished = True
 
-    #다시 rerun → 타이핑된 메시지를 히스토리로 고정
+    # rerun은 딱 한 번만
     st.rerun()
-# -----------------------------
-# Finish code display
-# -----------------------------
-if st.session_state.finished:
-    st.success(
-        f"Thank you for completing the conversation.\n\n"
-        f"Your completion code is: **{st.session_state.finish_code}**\n\n"
-        f"Please enter this code in the survey to proceed."
-    )
