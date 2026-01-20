@@ -248,13 +248,13 @@ if (
         thinking_animation(placeholder, duration=1.8)
 
         # OpenAI 호출
-        response = client.chat.responses.create(
+        response = client.chat.completions.create(
             model="gpt-4.1",
             input=messages_for_api
         )
 
-        assistant_message = response.output_text
-
+        assistant_message = response.choices[0].message.content
+        
         # 메시지를 한 번에 출력
         placeholder.markdown(assistant_message)
         
