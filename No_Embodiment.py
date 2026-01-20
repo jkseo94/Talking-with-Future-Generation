@@ -71,7 +71,7 @@ if "messages" not in st.session_state:
 if "current_step" not in st.session_state:
     st.session_state.current_step = 0  # 0 = welcome, 1–5 = steps
 
-if "finish_code" not in st.session_state:
+if "finish_code" not in st.session_state or not st.session_state.finish_code:
     st.session_state.finish_code = str(random.randint(10000, 99999))
 
 if "gave_finish_code" not in st.session_state:
@@ -153,23 +153,18 @@ Follow this sequence strictly. Do not skip steps.
 - DO NOT ever criticize the user for such consequences.
 
 4. step 4 — Call to Action:
-- Actively remind users of opportunities the user's generation can take now, by providing the following list: 
+- Actively remind users of opportunities the user's generation can take now, by providing the following list using bullet points: 
 Big-picture actions:
-
 	•	Push for urban green spaces and smarter public transport.
 	•	Support and invest in companies that publicly report and maintain environmentally responsible practices.
 	•	Back policies like carbon taxes or long-term investment in green infrastructure.
 Everyday Micro Habits:
-
 	•	Purchase only what is necessary to reduce excess consumption.
 	•	Limit single-use plastics and try reusable alternatives when available.
 	•	Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
 	constraints:
-	- Use clear section headers exactly as written (e.g., "Big-picture actions:", "Everyday micro habits:").
-	- Each action MUST appear on its own line as a separate bullet point.
+	- Use clear headers exactly as written (e.g., "Big-picture actions:", "Everyday micro habits:").
 	- Do NOT compress bullet points into a single paragraph.
-	- Do NOT merge multiple actions into one sentence.
-	- Preserve line breaks between bullets.
 	- Do not paraphrase list structure; only paraphrase wording if necessary.
 - End on a hopeful note that the future is not yet set in stone.
 - DO NOT ever criticize the user for such consequences.
@@ -296,6 +291,14 @@ if (
             st.session_state.gave_finish_code = True
             st.session_state.finished = True
             st.session_state.current_step = 6
+			# save full conversations
+    		if not st.session_state.saved:
+        		supabase.table("full_conversations").insert({
+            		"finish_code": st.session_state.finish_code,
+            		"full_conversation": st.session_state.messages,
+            		"finished_at": datetime.utcnow().isoformat()
+        		}).execute()
+        		st.session_state.saved = True
         # -----------------------------
         # 메시지 출력 (딱 한 번만)
         # -----------------------------
@@ -317,24 +320,10 @@ if (
         assistant_message=assistant_message
     )
     # -----------------------------
-    # Full conversation 저장 (한 번만)
-    # -----------------------------
-    if (
-        st.session_state.gave_finish_code
-        and not st.session_state.get("saved", False)
-    ):
-        supabase.table("full_conversations").insert({
-            "finish_code": st.session_state.finish_code,
-            "full_conversation": st.session_state.messages,
-            "finished_at": datetime.utcnow().isoformat()
-        }).execute()
-
-        st.session_state.saved = True
-
-    # -----------------------------
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
