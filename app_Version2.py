@@ -48,14 +48,21 @@ def insert_log(
     user_message,
     assistant_message
 ):
-    supabase.table("chat_logs").insert({
-        "finish_code": finish_code,
-        "timestamp": datetime.utcnow().isoformat(),
-        "stage": stage,
-        "turn": turn,
-        "user_message": user_message,
-        "assistant_message": assistant_message
-    }).execute()
+    try:
+        result = supabase.table("chat_logs").insert({
+            "finish_code": finish_code,
+            "timestamp": datetime.utcnow().isoformat(),
+            "stage": stage,
+            "turn": turn,
+            "user_message": user_message,
+            "assistant_message": assistant_message
+        }).execute()
+
+        st.write("✅ Supabase insert success:", result)
+
+    except Exception as e:
+        st.error("❌ Supabase insert failed")
+        st.error(str(e))
 # -----------------------------
 # Page setup
 # -----------------------------
