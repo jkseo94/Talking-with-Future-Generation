@@ -6,6 +6,19 @@ from datetime import datetime
 import random
 import time
 # -----------------------------
+# UI/UX
+# -----------------------------
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+# -----------------------------
 # iMessage-style thinking (DEFINE FIRST)
 # -----------------------------
 def thinking_animation(duration=3.8, interval=0.4):
@@ -198,7 +211,7 @@ if (
 
     # 🌍 Assistant typing effect
     with st.chat_message("assistant", avatar="🌍"):
-        placeholder = thinking_animation(duration=1.2, interval=0.3)
+        placeholder = thinking_animation(duration=3.8, interval=0.4)
         placeholder.markdown(assistant_message)
 
     # Save assistant message AFTER typing
