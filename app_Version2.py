@@ -306,6 +306,7 @@ if (
         elif st.session_state.current_step == 5:
             assistant_message += f"\n\nYour finish code is **{st.session_state.finish_code}**."
             st.session_state.gave_finish_code = True
+            st.session_state.finished = True
             st.session_state.current_step = 6
         # -----------------------------
         # 메시지 출력 (딱 한 번만)
