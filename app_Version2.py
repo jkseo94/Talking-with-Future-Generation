@@ -41,19 +41,12 @@ def connecting_to_2060(placeholder, think_time=2.5):
 # -----------------------------
 # Log_Supabase
 # -----------------------------
-def insert_log(
-    finish_code,
-    stage,
-    turn,
-    user_message,
-    assistant_message
-):
-    supabase.table("chat_logs").insert({
-        "finish_code": finish_code,
-        "stage": stage,
-        "turn": turn,
-        "user_message": user_message,
-        "assistant_message": assistant_message
+def save_chat_session():
+    supabase.table("chat_sessions").insert({
+        "finish_code": st.session_state.finish_code,
+        "full_conversation": st.session_state.messages,
+        "started_at": st.session_state.started_at,
+        "finished_at": datetime.utcnow().isoformat()
     }).execute()
 # -----------------------------
 # Page setup
@@ -88,6 +81,9 @@ if "connected_2060" not in st.session_state:
 if "turn" not in st.session_state:
     st.session_state.turn = 0
 
+if "started_at" not in st.session_state:
+    st.session_state.started_at = datetime.utcnow().isoformat()
+    
 if "finished" not in st.session_state:
     st.session_state.finished = False
     
@@ -198,8 +194,8 @@ if user_input and not st.session_state.finished:
         {"role": "user", "content": user_input}
     )
 
-    #유저 메시지를 바로 렌더링하기 위해 즉시 rerun
     st.rerun()
+
 # -----------------------------
 # ASSISTANT RESPONSE GENERATION
 # -----------------------------
@@ -209,37 +205,31 @@ if (
     and st.session_state.messages[-1]["role"] == "user"
 ):
 
-    # 항상 이 블록 안에서만 정의
     last_user_input = st.session_state.messages[-1]["content"]
 
     # -----------------------------
     # Stage & turn management
     # -----------------------------
     if st.session_state.stage == 1:
-        if any(
-            word in last_user_input.lower()
-            for word in ["yes", "ready", "sure", "ok", "start"]
-        ):
+        if any(word in last_user_input.lower()
+               for word in ["yes", "ready", "sure", "ok", "start"]):
             st.session_state.stage = 2
             st.session_state.turn = 1
     else:
         st.session_state.turn += 1
 
-    # -----------------------------
-    # OpenAI input
-    # -----------------------------
     messages_for_api = [
         {"role": "system", "content": SYSTEM_PROMPT},
         *st.session_state.messages
     ]
 
     # -----------------------------
-    # Assistant bubble (즉시 생성)
+    # Assistant bubble
     # -----------------------------
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = st.empty()
 
-        # Turn 1: connecting → thinking
+        # Turn 1: connecting
         if (
             st.session_state.stage == 2
             and st.session_state.turn == 1
@@ -249,27 +239,22 @@ if (
             connecting_to_2060(placeholder, think_time=2.5)
             st.session_state.connected_2060 = True
         else:
-            # Turn 2+ : 거의 즉시 …
             time.sleep(0.2)
-
-        # -----------------------------
-        # OpenAI call (thinking과 겹치게)
-        # -----------------------------
+            
         thinking_start = time.time()
 
+        # OpenAI call (thinking 이후)
         response = client.chat.completions.create(
             model="gpt-4.1",
             messages=messages_for_api
         )
-
         assistant_message = response.choices[0].message.content or ""
 
         # thinking 최소 시간 보장
         elapsed = time.time() - thinking_start
-        if elapsed < 1.0:
-            time.sleep(1.0 - elapsed)
-
-        # 최종 메시지 (같은 말풍선)
+        if elapsed < 1.2:
+            time.sleep(1.2 - elapsed)
+        # 최종 메시지로 교체
         placeholder.markdown(assistant_message)
 
     # -----------------------------
@@ -280,23 +265,20 @@ if (
     )
 
     # -----------------------------
-    # Supabase insert (항상 실행)
-    # -----------------------------
-    insert_log(
-        finish_code=st.session_state.finish_code,
-        stage=st.session_state.stage,
-        turn=st.session_state.turn,
-        user_message=last_user_input,
-        assistant_message=assistant_message
-    )
-
-    # -----------------------------
-    # Finish code logic
+    # Finish logic
     # -----------------------------
     if st.session_state.turn >= 5 and "end" in last_user_input.lower():
         st.session_state.finished = True
 
     # -----------------------------
-    # rerun (딱 한 번, 맨 마지막)
+    # Save full conversation (once)
     # -----------------------------
+    if st.session_state.finished and not st.session_state.get("saved"):
+        supabase.table("chat_sessions").insert({
+            "finish_code": st.session_state.finish_code,
+            "full_conversation": st.session_state.messages,
+            "finished_at": datetime.utcnow().isoformat()
+        }).execute()
+        st.session_state.saved = True
+
     st.rerun()
