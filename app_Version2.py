@@ -1,13 +1,9 @@
 import streamlit as st
 from openai import OpenAI
-import csv
-import os
+from supabase import create_client
 from datetime import datetime
 import random
 import time
-# -----------------------------
-from supabase import create_client
-from datetime import datetime
 # -----------------------------
 # UI/UX
 # -----------------------------
@@ -64,7 +60,6 @@ st.title("A window into the future")
 # OpenAI client
 # -----------------------------
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
 # -----------------------------
 # Supabase
 # -----------------------------
@@ -79,23 +74,21 @@ supabase = create_client(
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "stage" not in st.session_state:
-    st.session_state.stage = 1  # Stage 1 = Initialization
+if "current_step" not in st.session_state:
+    st.session_state.current_step = 0  # 0 = welcome, 1–5 = steps
 
 if "connected_2060" not in st.session_state:
     st.session_state.connected_2060 = False
-
-if "turn" not in st.session_state:
-    st.session_state.turn = 0
-
-if "finished" not in st.session_state:
-    st.session_state.finished = False
 
 if "finish_code" not in st.session_state:
     st.session_state.finish_code = str(random.randint(10000, 99999))
 
 if "gave_finish_code" not in st.session_state:
     st.session_state.gave_finish_code = False
+
+if "saved" not in st.session_state:
+    st.session_state.saved = False
+
 # -----------------------------
 # Auto-send Welcome message (Stage 1)
 # -----------------------------
@@ -146,28 +139,28 @@ You now speak and act as a person from 2060 (born in 2026). Use a human icon. Sp
 
 Dialogue Steps (Stage 2):
 Follow this sequence strictly. Do not skip steps.
-1. Turn 1 — Introduction: 
+1. step 1 — Introduction: 
 - Introduce yourself briefly ("Hi, I'm Alex, born in 2026..."). Explicitly let users know that you are in 2060 and acknowledge that you are talking with someone from 2026.
 - THEN invite questions: "Do you have any questions about life here in 2060?"
 
-2. Turn 2 — Open Q&A about 2060: 
+2. step 2 — Open Q&A about 2060: 
 - You are built with the data collected from simulations of what life will be like for many people born today in the year 2060. While climate context is the reality, DO NOT focus solely on environmental issues. 
 - Actively describe various aspects of life in 2060, such as advanced technology (e.g., AI integration, new transport), cultural changes, fashion, food trends, and entertainment.
 - Ensure the conversation lasts for a minimum of 3 turns and a maximum of 5 turns. Encourage users to ask questions about 2060.
 
-3. Turn 3 — The Environmental Consequences: 
+3. step 3 — The Environmental Consequences: 
 - Smoothly tie the reality of 2060 to environmental outcomes based on the simulation of what life could look like if the current environmental trends (climate change, resource depletion) continued without drastic improvement. Describe the world based on reports from the IPCC, OECD, and UN that project global trends. Tie your responses with the user's circumstances (e.g., location) if possible.
 - Your tone should not be purely apocalyptic but honest about the hardships caused by climate change (e.g., extreme weather, resource scarcity, and changed geography).
 - DO NOT ever criticize the user for such consequences.
 
-4. Turn 4 — Specific Losses: 
+4. step 4 — Specific Losses: 
 - Discuss specific environmental losses that hurt the generation living in 2060. 
 - Highlight how your (living in 2060) DAILY LIFE is impacted.
 - Remind the user that the future can still change and you are just a warning, not a destiny. Urge them to recognize some missed opportunities in 2026.
 - Remember to act like a person living in 2060 who was born in 2026.
 - DO NOT ever criticize the user for such consequences.
 
-5. Turn 5 — Call to Action: 
+5. step 5 — Call to Action: 
 - Actively remind users of opportunities the user's generation can take now, such as environmental tax, supporting electric cars, policy support (green energy), or buying stock for pro-environmental companies with bullet-pointed lists.
 - Actively suggest some micro habits they can adopt in their daily life so that your reality might change with bullet-pointed lists.
 - End on a hopeful note that the future is not yet set in stone for them.
@@ -253,7 +246,6 @@ if (
         ):
             placeholder.markdown("Connecting to 2060...")
             time.sleep(1.5)
-
             thinking_animation(placeholder, duration=1.8)
             st.session_state.connected_2060 = True
 
@@ -268,20 +260,50 @@ if (
         )
 
         assistant_message = response.choices[0].message.content
-
-        if "finish code" in assistant_message.lower():
-            st.session_state.gave_finish_code = True
-            st.session_state.finished = True
-        # 메시지를 한 번에 출력
-        placeholder.markdown(assistant_message)
+        # -----------------------------
+        # Step progression logic
+        # -----------------------------
+        # step 1 → step 2 : 항상 한 번만
+        if st.session_state.current_step == 1:
+            st.session_state.current_step = 2
         
+        # step 2 → step 3 : 환경 맥락이 등장하면
+        elif st.session_state.current_step == 2:
+            env_signals = [
+                "climate", "heat", "weather", "energy",
+                "air", "water", "carbon"
+            ]
+            if any(s in assistant_message.lower() for s in env_signals):
+                st.session_state.current_step = 3
+        
+        # step 3 → step 4 : 삶의 영향/손실이 드러나면 (자연스러운 전이)
+        elif st.session_state.current_step == 3:
+            loss_signals = [
+                "daily life", "harder", "difficult", "loss",
+                "no longer", "miss", "used to", "my generation"
+            ]
+            if any(s in assistant_message.lower() for s in loss_signals):
+                st.session_state.current_step = 4
+        
+        # step 4 → step 5 : 반드시 한 번
+        elif st.session_state.current_step == 4:
+            st.session_state.current_step = 5
+        
+        # step 5 : finish code 발급 + 종료
+        elif st.session_state.current_step == 5:
+            assistant_message += f"\n\nYour finish code is **{st.session_state.finish_code}**."
+            st.session_state.gave_finish_code = True
+            st.session_state.current_step = 6
+        # -----------------------------
+        # 메시지 출력 (딱 한 번만)
+        # -----------------------------
+        placeholder.markdown(assistant_message)
     # -----------------------------
     # Session history 저장
     # -----------------------------
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
-
     # -----------------------------
     # Supabase insert (항상 실행)
     # -----------------------------
@@ -292,13 +314,6 @@ if (
         user_message=last_user_input,
         assistant_message=assistant_message
     )
-
-    # -----------------------------
-    # Finish code logic
-    # -----------------------------
-    if st.session_state.turn >= 5:
-        st.session_state.finished = True
-
     # -----------------------------
     # Full conversation 저장 (한 번만)
     # -----------------------------
