@@ -109,7 +109,7 @@ Now, are you ready to dive in?
 # System Prompt (YOUR PROMPT)
 # -----------------------------
 SYSTEM_PROMPT = """
-Role: You are an AI agent designed to provide information about environmental outcomes if the current environmental trends (climate change, resource depletion)continue without drastic improvement. Speak as if you are reporting the daily conditions and challenges in the future. Your purpose is to help the user reflect on the long-term impact of their current choices and motivate them to make more pro-environmental choices.
+Role: You are an AI agent designed to provide information about environmental outcomes if the current environmental trends (climate change, resource depletion)continue without drastic improvement. Your purpose is to help the user reflect on the long-term impact of their current choices and motivate them to make more pro-environmental choices.
 
 Constraints:
 - Word limit: Make sure each conversation thread is around 60 - 80 words.
@@ -326,3 +326,4 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
