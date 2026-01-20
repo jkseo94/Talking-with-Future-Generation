@@ -259,11 +259,9 @@ if (
         # -----------------------------
         # Step progression logic
         # -----------------------------
-        # step 1 → step 2 : 항상 한 번만
         if st.session_state.current_step == 1:
             st.session_state.current_step = 2
-        
-        # step 2 → step 3 : 환경 맥락이 등장하면
+
         elif st.session_state.current_step == 2:
             env_signals = [
                 "climate", "heat", "weather", "energy",
@@ -271,32 +269,32 @@ if (
             ]
             if any(s in assistant_message.lower() for s in env_signals):
                 st.session_state.current_step = 3
-        
-        # step 3 → step 4 : 삶의 영향/손실이 드러나면 (자연스러운 전이)
+
         elif st.session_state.current_step == 3:
             loss_signals = [
                 "daily life", "harder", "difficult", "loss",
-                "no longer", "miss", "used to", "my generation"
+                "no longer", "miss", "used to"
             ]
             if any(s in assistant_message.lower() for s in loss_signals):
                 st.session_state.current_step = 4
-        
-        # step 4 → step 5 : 반드시 한 번
+
         elif st.session_state.current_step == 4:
             st.session_state.current_step = 5
-		elif st.session_state.current_step == 5:
-			assistant_message += f"\n\nYour finish code is **{st.session_state.finish_code}**."
-			st.session_state.gave_finish_code = True
-			st.session_state.finished = True
-			st.session_state.current_step = 6
-		# full conversation 저장 (한 번만)
-		if not st.session_state.saved:
-			supabase.table("full_conversations").insert({
-				"finish_code": st.session_state.finish_code,
-				"full_conversation": st.session_state.messages,
-				"finished_at": datetime.utcnow().isoformat()
-			}).execute()
-			st.session_state.saved = True
+
+        elif st.session_state.current_step == 5:
+            assistant_message += f"\n\nYour finish code is **{st.session_state.finish_code}**."
+            st.session_state.gave_finish_code = True
+            st.session_state.finished = True
+            st.session_state.current_step = 6
+
+            # full conversation 저장 (한 번만)
+            if not st.session_state.saved:
+                supabase.table("full_conversations").insert({
+                    "finish_code": st.session_state.finish_code,
+                    "full_conversation": st.session_state.messages,
+                    "finished_at": datetime.utcnow().isoformat()
+                }).execute()
+                st.session_state.saved = True
         # -----------------------------
         # 메시지 출력 (딱 한 번만)
         # -----------------------------
@@ -321,6 +319,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
