@@ -264,15 +264,31 @@ if (
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
+# --- safety guard ---
+if st.session_state.stage is None:
+    st.session_state.stage = 1
 
-    insert_log(
-        finish_code=st.session_state.finish_code,
-        stage=st.session_state.stage,
-        turn=st.session_state.turn,
-        user_message=last_user_input,
-        assistant_message=assistant_message
-    )
+if st.session_state.turn is None or st.session_state.turn < 1:
+    st.session_state.turn = 1
+# --- prepare data ---
+data_to_insert = {
+    "finish_code": st.session_state.get("finish_code"), 
+    "stage": st.session_state.stage,
+    "turn": st.session_state.turn,
+    "user_message": last_user_input,
+    "assistant_message": assistant_message or ""
+}
+# --- debug output (Streamlit Cloud logs에서 확인 가능) ---
+print("DEBUG INSERT DATA:", data_to_insert)
 
+# --- insert (항상 실행) ---
+insert_log(
+    finish_code=data_to_insert["finish_code"],
+    stage=data_to_insert["stage"],
+    turn=data_to_insert["turn"],
+    user_message=data_to_insert["user_message"],
+    assistant_message=data_to_insert["assistant_message"]
+)
     # Finish code logic
     if st.session_state.turn >= 5 and "end" in last_user_input.lower():
         st.session_state.finished = True
