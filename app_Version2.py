@@ -205,27 +205,37 @@ if user_input and not st.session_state.finished:
 # -----------------------------
 if (
     not st.session_state.finished
-    and len(st.session_state.messages) > 0
+    and st.session_state.messages
     and st.session_state.messages[-1]["role"] == "user"
 ):
 
+    # 항상 이 블록 안에서만 정의
     last_user_input = st.session_state.messages[-1]["content"]
 
+    # -----------------------------
     # Stage & turn management
+    # -----------------------------
     if st.session_state.stage == 1:
-        if any(word in last_user_input.lower()
-               for word in ["yes", "ready", "sure", "ok", "start"]):
+        if any(
+            word in last_user_input.lower()
+            for word in ["yes", "ready", "sure", "ok", "start"]
+        ):
             st.session_state.stage = 2
             st.session_state.turn = 1
     else:
         st.session_state.turn += 1
 
+    # -----------------------------
+    # OpenAI input
+    # -----------------------------
     messages_for_api = [
         {"role": "system", "content": SYSTEM_PROMPT},
         *st.session_state.messages
     ]
 
-    # assistant bubble
+    # -----------------------------
+    # Assistant bubble (즉시 생성)
+    # -----------------------------
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = st.empty()
 
@@ -239,59 +249,63 @@ if (
             connecting_to_2060(placeholder, think_time=2.5)
             st.session_state.connected_2060 = True
         else:
-            # Turn 2+ : 거의 즉시 말풍선 등장
+            # Turn 2+ : 거의 즉시 …
             time.sleep(0.2)
 
-        # thinking 시작
+        # -----------------------------
+        # OpenAI call (thinking과 겹치게)
+        # -----------------------------
         thinking_start = time.time()
 
-        # Call OpenAI
         response = client.chat.completions.create(
             model="gpt-4.1",
             messages=messages_for_api
         )
-        assistant_message = response.choices[0].message.content
 
-        # thinking이 너무 짧으면 최소 1초 보장
+        assistant_message = response.choices[0].message.content or ""
+
+        # thinking 최소 시간 보장
         elapsed = time.time() - thinking_start
         if elapsed < 1.0:
             time.sleep(1.0 - elapsed)
 
-        # 최종 메시지
+        # 최종 메시지 (같은 말풍선)
         placeholder.markdown(assistant_message)
 
-    # 세션 저장
+    # -----------------------------
+    # Session history 저장
+    # -----------------------------
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
-# --- safety guard ---
-if st.session_state.stage is None:
-    st.session_state.stage = 1
 
-if st.session_state.turn is None or st.session_state.turn < 1:
-    st.session_state.turn = 1
-# --- prepare data ---
-data_to_insert = {
-    "finish_code": st.session_state.get("finish_code"), 
-    "stage": st.session_state.stage,
-    "turn": st.session_state.turn,
-    "user_message": last_user_input,
-    "assistant_message": assistant_message or ""
-}
-# --- debug output (Streamlit Cloud logs에서 확인 가능) ---
-print("DEBUG INSERT DATA:", data_to_insert)
+    # -----------------------------
+    # Safety guard (rerun 대비)
+    # -----------------------------
+    if st.session_state.stage is None:
+        st.session_state.stage = 1
 
-# --- insert (항상 실행) ---
-insert_log(
-    finish_code=data_to_insert["finish_code"],
-    stage=data_to_insert["stage"],
-    turn=data_to_insert["turn"],
-    user_message=data_to_insert["user_message"],
-    assistant_message=data_to_insert["assistant_message"]
-)
+    if st.session_state.turn is None or st.session_state.turn < 1:
+        st.session_state.turn = 1
+
+    # -----------------------------
+    # Supabase insert (항상 실행)
+    # -----------------------------
+    insert_log(
+        finish_code=st.session_state.get("finish_code"),
+        stage=st.session_state.stage,
+        turn=st.session_state.turn,
+        user_message=last_user_input or "",
+        assistant_message=assistant_message
+    )
+
+    # -----------------------------
     # Finish code logic
-if st.session_state.turn >= 5 and "end" in last_user_input.lower():
-    st.session_state.finished = True
+    # -----------------------------
+    if st.session_state.turn >= 5 and "end" in last_user_input.lower():
+        st.session_state.finished = True
 
-    # rerun은 딱 한 번만
-st.rerun()
+    # -----------------------------
+    # rerun (딱 한 번, 맨 마지막)
+    # -----------------------------
+    st.rerun()
