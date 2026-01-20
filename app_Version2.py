@@ -93,6 +93,9 @@ if "finished" not in st.session_state:
 
 if "finish_code" not in st.session_state:
     st.session_state.finish_code = str(random.randint(10000, 99999))
+
+if "gave_finish_code" not in st.session_state:
+    st.session_state.gave_finish_code = False
 # -----------------------------
 # Auto-send Welcome message (Stage 1)
 # -----------------------------
@@ -204,7 +207,7 @@ if user_input and not st.session_state.finished:
 # ASSISTANT RESPONSE GENERATION
 # -----------------------------
 if (
-    not st.session_state.finished
+    not st.session_state.gave_finish_code
     and st.session_state.messages
     and st.session_state.messages[-1]["role"] == "user"
 ):
@@ -265,7 +268,10 @@ if (
         )
 
         assistant_message = response.choices[0].message.content
-        
+
+        if "finish code" in assistant_message.lower():
+            st.session_state.gave_finish_code = True
+            st.session_state.finished = True
         # 메시지를 한 번에 출력
         placeholder.markdown(assistant_message)
         
