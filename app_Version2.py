@@ -250,7 +250,7 @@ if (
         # OpenAI 호출
         response = client.chat.completions.create(
             model="gpt-4.1",
-            input=messages_for_api
+            messages=messages_for_api
         )
 
         assistant_message = response.choices[0].message.content
