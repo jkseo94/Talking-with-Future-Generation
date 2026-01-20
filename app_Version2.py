@@ -38,12 +38,10 @@ def thinking_animation(duration=3.8, interval=0.4):
 # -----------------------------
 st.set_page_config(page_title="A window into the future", layout="centered")
 st.title("A window into the future")
-
 # -----------------------------
 # OpenAI client
 # -----------------------------
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
 # -----------------------------
 # Session state initialization
 # -----------------------------
@@ -52,7 +50,15 @@ if "messages" not in st.session_state:
 
 if "stage" not in st.session_state:
     st.session_state.stage = 1  # Stage 1 = Initialization
-
+    
+if "connected_2060" not in st.session_state:
+    st.session_state.connected_2060 = False
+def connecting_to_2060(think_time=2.5):
+    placeholder = st.empty()
+    placeholder.markdown("connecting to 2060...")
+    time.sleep(think_time)
+    placeholder.empty()
+    
 if "turn" not in st.session_state:
     st.session_state.turn = 0
 
@@ -190,7 +196,6 @@ if (
             st.session_state.stage = 2
             st.session_state.turn = 1
         else:
-            # Stage 1에서는 준비 확인만 받고 응답 생성
             st.session_state.stage = 1
     else:
         st.session_state.turn += 1
@@ -201,7 +206,22 @@ if (
         *st.session_state.messages
     ]
 
-    # Call OpenAI
+    # -----------------------------
+    # BEFORE Turn 1: connection effect (UI only)
+    # -----------------------------
+    if (
+        st.session_state.stage == 2
+        and st.session_state.turn == 1
+        and not st.session_state.connected_2060
+    ):
+        with st.chat_message("assistant", avatar="🌍"):
+            connecting_to_2060(think_time=2.5)
+
+        st.session_state.connected_2060 = True
+
+    # -----------------------------
+    # Call OpenAI (ALWAYS)
+    # -----------------------------
     response = client.chat.completions.create(
         model="gpt-4.1",
         messages=messages_for_api
@@ -209,16 +229,17 @@ if (
 
     assistant_message = response.choices[0].message.content
 
-    # Assistant typing effect
+    # -----------------------------
+    # Assistant response (thinking → message)
+    # -----------------------------
     with st.chat_message("assistant", avatar="🌍"):
-        placeholder = thinking_animation(duration=3.8, interval=0.4)
-        placeholder.markdown(assistant_message)
+        thinking_then_show(assistant_message, think_time=3.8)
 
-    # Save assistant message AFTER typing
+    # Save assistant message
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
-
+    
     # Save logs
     os.makedirs("logs", exist_ok=True)
     with open("logs/chat_log.csv", "a", newline="", encoding="utf-8") as f:
