@@ -283,7 +283,7 @@ if (
     # Supabase insert (항상 실행)
     # -----------------------------
     insert_log(
-        finish_code=st.session_state.get.finish_code,
+        finish_code=st.session_state.finish_code,
         stage=st.session_state.stage,
         turn=st.session_state.turn,
         user_message=last_user_input,
