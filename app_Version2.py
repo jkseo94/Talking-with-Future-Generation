@@ -189,12 +189,10 @@ for msg in st.session_state.messages:
 user_input = st.chat_input("Type your message here")
 
 #USER MESSAGE: 즉시 화면에 보이게 처리
-if user_input and not st.session_state.finished:
+if user_input:
     st.session_state.messages.append(
         {"role": "user", "content": user_input}
     )
-
-    #유저 메시지를 바로 렌더링하기 위해 즉시 rerun
     st.rerun()
 # -----------------------------
 # ASSISTANT RESPONSE GENERATION
