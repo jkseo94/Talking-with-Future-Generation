@@ -284,22 +284,19 @@ if (
         # step 4 → step 5 : 반드시 한 번
         elif st.session_state.current_step == 4:
             st.session_state.current_step = 5
-        
-        # step 5 : finish code 발급 + 종료
-        elif st.session_state.current_step == 5:
-		    assistant_message += f"\n\nYour finish code is **{st.session_state.finish_code}**."
-		    st.session_state.gave_finish_code = True
-		    st.session_state.finished = True
-		    st.session_state.current_step = 6
-
-    # full conversation 저장 (한 번만)
-    		if not st.session_state.saved:
-        		supabase.table("full_conversations").insert({
-		            "finish_code": st.session_state.finish_code,
-		            "full_conversation": st.session_state.messages,
-		            "finished_at": datetime.utcnow().isoformat()
-		        }).execute()
-		        st.session_state.saved = True
+		elif st.session_state.current_step == 5:
+			assistant_message += f"\n\nYour finish code is **{st.session_state.finish_code}**."
+			st.session_state.gave_finish_code = True
+			st.session_state.finished = True
+			st.session_state.current_step = 6
+		# full conversation 저장 (한 번만)
+		if not st.session_state.saved:
+			supabase.table("full_conversations").insert({
+				"finish_code": st.session_state.finish_code,
+				"full_conversation": st.session_state.messages,
+				"finished_at": datetime.utcnow().isoformat()
+			}).execute()
+			st.session_state.saved = True
         # -----------------------------
         # 메시지 출력 (딱 한 번만)
         # -----------------------------
@@ -324,6 +321,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
