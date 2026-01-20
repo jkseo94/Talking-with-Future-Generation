@@ -88,7 +88,15 @@ if "gave_finish_code" not in st.session_state:
 
 if "saved" not in st.session_state:
     st.session_state.saved = False
+    
+if "stage" not in st.session_state:
+    st.session_state.stage = 1   # Stage 1 = Welcome, Stage 2 = Simulation
 
+if "turn" not in st.session_state:
+    st.session_state.turn = 0
+
+if "finished" not in st.session_state:
+    st.session_state.finished = False
 # -----------------------------
 # Auto-send Welcome message (Stage 1)
 # -----------------------------
@@ -223,8 +231,15 @@ if (
     # OpenAI input
     # -----------------------------
     messages_for_api = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        *st.session_state.messages
+    {
+        "role": "system",
+        "content": SYSTEM_PROMPT
+    },
+    {
+        "role": "system",
+        "content": f"You are currently responding in STEP {st.session_state.current_step}. Respond ONLY for this step."
+    },
+    *st.session_state.messages
     ]
 
     # -----------------------------
