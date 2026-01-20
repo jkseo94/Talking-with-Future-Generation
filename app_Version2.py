@@ -6,6 +6,9 @@ from datetime import datetime
 import random
 import time
 # -----------------------------
+from supabase import create_client
+from datetime import datetime
+# -----------------------------
 # UI/UX
 # -----------------------------
 st.markdown(
@@ -36,19 +39,23 @@ def connecting_to_2060(placeholder, think_time=2.5):
     placeholder.markdown("Connecting to 2060...")
     time.sleep(think_time)
 # -----------------------------
-# Delayed connecting
+# Log_Supabase
 # -----------------------------
-def delayed_connecting(delay=1.2, connect_time=2.5):
-    time.sleep(delay)
-    connecting_to_2060(think_time=connect_time)
-# -----------------------------
-# Thinking → show (single bubble, no typing)
-# -----------------------------
-def thinking_then_show(text, think_time=3.8):
-    placeholder = st.empty()
-    placeholder.markdown("…")
-    time.sleep(think_time)
-    placeholder.markdown(text)
+def insert_log(
+    finish_code,
+    stage,
+    turn,
+    user_message,
+    assistant_message
+):
+    supabase.table("chat_logs").insert({
+        "finish_code": finish_code,
+        "timestamp": datetime.utcnow().isoformat(),
+        "stage": stage,
+        "turn": turn,
+        "user_message": user_message,
+        "assistant_message": assistant_message
+    }).execute()
 # -----------------------------
 # Page setup
 # -----------------------------
@@ -58,6 +65,15 @@ st.title("A window into the future")
 # OpenAI client
 # -----------------------------
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+# -----------------------------
+# Supabase
+# -----------------------------
+supabase = create_client(
+    st.secrets["SUPABASE_URL"],
+    st.secrets["SUPABASE_ANON_KEY"]
+)
+
 # -----------------------------
 # Session state initialization
 # -----------------------------
@@ -75,10 +91,9 @@ if "turn" not in st.session_state:
 
 if "finished" not in st.session_state:
     st.session_state.finished = False
-
+    
 if "finish_code" not in st.session_state:
-    st.session_state.finish_code = None
-
+    st.session_state.finish_code = str(random.randint(10000, 99999))
 # -----------------------------
 # Auto-send Welcome message (Stage 1)
 # -----------------------------
@@ -243,18 +258,13 @@ if (
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
-
-    # Save logs
-    os.makedirs("logs", exist_ok=True)
-    with open("logs/chat_log.csv", "a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            datetime.now().isoformat(),
-            st.session_state.stage,
-            st.session_state.turn,
-            last_user_input,
-            assistant_message
-        ])
+    insert_log(
+    finish_code=st.session_state.finish_code,
+    stage=st.session_state.stage,
+    turn=st.session_state.turn,
+    user_message=last_user_input,
+    assistant_message=assistant_message
+    )
 
     # Finish code logic
     if st.session_state.turn >= 5 and "end" in last_user_input.lower():
