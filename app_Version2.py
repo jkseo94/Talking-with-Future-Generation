@@ -239,13 +239,24 @@ if (
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = st.empty()
 
-        # 0.2초 후 Connecting
+        # 모든 턴에서 0.2초 후 대기
         time.sleep(0.2)
-        placeholder.markdown("Connecting to 2060...")
-        time.sleep(1.5)
 
-        # iMessage-style thinking dots
-        thinking_animation(placeholder, duration=1.8)
+        #turn1:
+        if (
+            st.session_state.stage == 2
+            and st.session_state.turn == 1
+            and not st.session_state.connected_2060
+        ):
+            placeholder.markdown("Connecting to 2060...")
+            time.sleep(1.5)
+
+            thinking_animation(placeholder, duration=1.8)
+            st.session_state.connected_2060 = True
+
+        # Turn 2+: dots만 (Connecting to 2060 없음)
+        elif st.session_state.stage == 2:
+            thinking_animation(placeholder, duration=1.2)
 
         # OpenAI 호출
         response = client.chat.completions.create(
