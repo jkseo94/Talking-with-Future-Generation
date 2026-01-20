@@ -235,12 +235,13 @@ if (
             and st.session_state.turn == 1
             and not st.session_state.connected_2060
         ):
-            time.sleep(1.2)
-            connecting_to_2060(placeholder, think_time=2.5)
+            placeholder.markdown("Connecting to 2060...")
+            time.sleep(2.5)
             st.session_state.connected_2060 = True
         else:
             time.sleep(0.2)
-            
+        # ---------- Thinking (VISIBLE) ----------
+        placeholder.markdown("…")
         thinking_start = time.time()
 
         # OpenAI call (thinking 이후)
