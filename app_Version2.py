@@ -290,8 +290,8 @@ insert_log(
     assistant_message=data_to_insert["assistant_message"]
 )
     # Finish code logic
-    if st.session_state.turn >= 5 and "end" in last_user_input.lower():
-        st.session_state.finished = True
+if st.session_state.turn >= 5 and "end" in last_user_input.lower():
+    st.session_state.finished = True
 
     # rerun은 딱 한 번만
-    st.rerun()
+st.rerun()
