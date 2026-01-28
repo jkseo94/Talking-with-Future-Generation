@@ -92,10 +92,8 @@ if "finished" not in st.session_state:
 # Auto-send Welcome message (Stage 1)
 # -----------------------------
 if len(st.session_state.messages) == 0:
-    welcome_message = """Welcome!
-Have you ever wondered what your daily choices will resonate decades from now?
-
-By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges in the future.
+    welcome_message = """Welcome! Have you ever wondered what your daily choices will resonate decades from now? 
+By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges in the future. 
 
 In a moment, you will engage in a dialogue with an AI assistant. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
 
@@ -341,6 +339,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
