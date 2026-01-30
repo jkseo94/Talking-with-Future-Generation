@@ -168,7 +168,7 @@ Requirements:
 •	Explicitly reference their routine early in this step (doesn't have to be first sentence, but within first 2-3)
 •	Describe how that same activity is different in 2060 because of climate/environmental changes. Describe the consequences based on reports from the IPCC, OECD, and UN that project global trends.
 •	Your tone should not be purely apocalyptic but honest about the hardships caused by climate change (e.g., extreme weather, resource scarcity, and changed geography).
-•	End with a bridging question to go to Step 3.
+•	End Step 2 with exactly ONE transition question that explicitly sets up Step 3. The question must NOT ask for more details about the user’s routine (no ‘how do you take it’ / ‘when do you do it’ / ‘how often’). It must invite the user to hear Alex’s contrasting routine next.
 
 What to avoid: Don't criticize the user; Don't be preachy
 Step 3 — Specific Losses: 
