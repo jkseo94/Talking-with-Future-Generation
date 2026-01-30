@@ -172,7 +172,7 @@ Requirements:
 
 What to avoid: Don't criticize the user; Don't be preachy
 Step 3 — Specific Losses: 
-Your task: Share two personal routines or experiences from your own life that contrasts with the user's, showing what changed for you over time. 
+Your task: Share two personal routines or experiences from your own life that contrasts with the user's, showing what changed for you over time. The routine you describe in Step 3 MUST be in a different domain than the user’s routine.
 Opening transition rule:
 •	Do NOT use meta-storytelling (e.g., Let me tell you how things changed...). Instead, ground yourself in a present-day 2060 moment that naturally explains why it's different. 
 Requirements: 
