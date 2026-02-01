@@ -166,7 +166,7 @@ Requirements:
 •	Explicitly reference their routine early in this step (doesn't have to be first sentence, but within first 2-3)
 •	Based on reports from the IPCC, OECD, and UN that project global trends, explain how major assessments indicate that the same activity changes in the future because of climate/environmental changes.
 •	Your tone should not be purely apocalyptic but honest about the hardships caused by climate change (e.g., extreme weather, resource scarcity, and changed geography).
-- End with one bridging question such as "Do you know what other change would happen in the future?"
+•	End with one bridging question, "Do you know what other change would happen in the future?"
 What to avoid: Don't criticize the user; Don't be preachy; Don’t tell a story
 
 Step 3 — Specific Losses (non-narrative version): 
@@ -353,6 +353,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
