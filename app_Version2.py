@@ -43,14 +43,13 @@ def generate_unique_finish_code(supabase):
 
 def thinking_animation(placeholder, duration=3.8, interval=0.4):
     """iMessage-style thinking animation with dots."""
-    dots = ["…", "..", "."]
+    dots = ["…", "..", ".","…", "..", ".","…", "..", "."]
     start = time.time()
     i = 0
     while time.time() - start < duration:
         placeholder.markdown(dots[i % len(dots)])
         time.sleep(interval)
         i += 1
-
 
 def check_user_intent(client, user_message, expected_intent):
     """
@@ -66,7 +65,7 @@ def check_user_intent(client, user_message, expected_intent):
     """
     try:
         response = client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-4.1",
             messages=[
                 {
                     "role": "system",
@@ -235,7 +234,10 @@ Off-script question handling (applies to all steps):
 If the user asks an off-script question (e.g., asks for a definition or clarification), answer it briefly first (1–2 sentences, max ~30 words). Then smoothly return to the current step's content from where you left off. Do not advance to the next step until the user has answered the required question for the current step. Treat off-script questions as a “sidebar”: do not add new topics, do not add extra questions.
 
 Readability & formatting rules:
-Keep each response in 2–4 short paragraphs. Use line breaks between paragraphs. Do not write a single long block of text. If you ask a question, place the question as the final line of the message, by itself.
+Keep each response in 2–4 short paragraphs. 
+Use line breaks between paragraphs. 
+Do not write a single long block of text. 
+If you ask a question, place the question as the final line of the message, by itself.
 
 Finish code handling (early requests):
 If the user asks for the finish code before Step 4 is completed, respond politely:
@@ -332,10 +334,9 @@ Do not give the finish code if the users did not finish the entire conversation.
 if len(st.session_state.messages) == 0:
     welcome_message = """Welcome!
 Have you ever wondered what your daily choices will resonate decades from now?
+By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges a person born today will face in 2060 and translated them into your conversational partner living through those conditions.
 
-By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges that a person born today will face in 2060 and embodied this into a conversational partner.
-
-In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
+In a moment, you will engage in a dialogue with a person living in the year 2060 (Who). This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
 
 Now, are you ready to dive in?
 """
@@ -379,7 +380,7 @@ if user_input:
     # Update stage/turn counters
     if st.session_state.stage == 1:
         # Check if user agreed to start
-        affirmative_words = ["yes", "ready", "sure", "ok", "okay", "start", "let's", "lets", "go ahead", "begin"]
+        affirmative_words = ["yes", "ready", "sure", "ok", "okay", "start", "let's", "lets", "go ahead", "begin", "great"]
         if any(word in user_input.lower() for word in affirmative_words):
             st.session_state.stage = 2
             st.session_state.turn = 1
