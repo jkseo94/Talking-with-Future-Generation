@@ -4,9 +4,89 @@ from supabase import create_client
 from datetime import datetime
 import random
 import time
-# -----------------------------
-# UI/UX
-# -----------------------------
+
+# ==========================================
+# HELPER FUNCTIONS
+# ==========================================
+
+def get_external_finish_code():
+    """Fetch finish_code from query params if the upstream system provides it."""
+    try:
+        qp = st.query_params  # Streamlit >= 1.30
+        return qp.get("finish_code", None)
+    except Exception:
+        try:
+            qp = st.experimental_get_query_params()  # legacy
+            return qp.get("finish_code", [None])[0]
+        except Exception:
+            return None
+
+
+def generate_unique_finish_code(supabase):
+    """Generate unique finish code with database verification."""
+    for _ in range(10):
+        code = str(random.randint(10000, 99999))
+        try:
+            result = supabase.table("full_conversations")\
+                .select("finish_code")\
+                .eq("finish_code", code)\
+                .execute()
+            if len(result.data) == 0:
+                return code
+        except Exception as e:
+            # If DB check fails, continue trying
+            continue
+    
+    # Fallback: timestamp-based code
+    return str(int(time.time() * 1000) % 100000)
+
+
+def thinking_animation(placeholder, duration=3.8, interval=0.4):
+    """iMessage-style thinking animation with dots."""
+    dots = ["…", "..", "."]
+    start = time.time()
+    i = 0
+    while time.time() - start < duration:
+        placeholder.markdown(dots[i % len(dots)])
+        time.sleep(interval)
+        i += 1
+
+
+def insert_log(supabase, finish_code, stage, turn, user_message, assistant_message):
+    """Insert a per-turn log row. Failures should not crash the session."""
+    try:
+        supabase.table("chat_logs").insert({
+            "finish_code": finish_code,
+            "stage": stage,
+            "turn": turn,
+            "user_message": user_message,
+            "assistant_message": assistant_message
+        }).execute()
+    except Exception as e:
+        # Non-fatal: keep the chat usable even if logging fails
+        st.warning(f"⚠️ Log insert failed: {e}")
+
+
+def save_full_conversation(supabase, finish_code, messages):
+    """Save complete conversation to database."""
+    try:
+        supabase.table("full_conversations").insert({
+            "finish_code": finish_code,
+            "full_conversation": messages,
+            "finished_at": datetime.utcnow().isoformat()
+        }).execute()
+        return True
+    except Exception as e:
+        st.error(f"❌ Failed to save full conversation: {e}")
+        return False
+
+
+# ==========================================
+# PAGE CONFIGURATION
+# ==========================================
+
+st.set_page_config(page_title="A window into the future", layout="centered")
+
 st.markdown(
     """
     <style>
@@ -17,119 +97,108 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# -----------------------------
-# iMessage-style thinking
-# -----------------------------
-def thinking_animation(placeholder, duration=3.8, interval=0.4):
-    dots = ["…", "..", "."]
-    start = time.time()
-    i = 0
-    while time.time() - start < duration:
-        placeholder.markdown(dots[i % len(dots)])
-        time.sleep(interval)
-        i += 1
-# -----------------------------
-# Connecting animation
-# -----------------------------
-def connecting_to_2060(placeholder, think_time=2.5):
-    placeholder.markdown("Connecting to 2060...")
-    time.sleep(think_time)
-# -----------------------------
-# Log_Supabase
-# -----------------------------
-def insert_log(
-    finish_code,
-    stage,
-    turn,
-    user_message,
-    assistant_message
-):
-    supabase.table("chat_logs").insert({
-        "finish_code": finish_code,
-        "stage": stage,
-        "turn": turn,
-        "user_message": user_message,
-        "assistant_message": assistant_message
-    }).execute()
-# -----------------------------
-# Page setup
-# -----------------------------
-st.set_page_config(page_title="A window into the future", layout="centered")
-st.title("A window into the future")
-# -----------------------------
-# OpenAI client
-# -----------------------------
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-# -----------------------------
-# Supabase
-# -----------------------------
-supabase = create_client(
-    st.secrets["SUPABASE_URL"],
-    st.secrets["SUPABASE_SERVICE_KEY"]
-)
 
-# -----------------------------
-# Session state initialization
-# -----------------------------
+st.title("A window into the future")
+
+# ==========================================
+# SERVICES INITIALIZATION
+# ==========================================
+
+# OpenAI client
+try:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+except Exception as e:
+    st.error(f"❌ Failed to initialize OpenAI: {e}")
+    st.stop()
+
+# Supabase client
+try:
+    supabase = create_client(
+        st.secrets["SUPABASE_URL"],
+        st.secrets["SUPABASE_SERVICE_KEY"]
+    )
+except Exception as e:
+    st.error(f"❌ Failed to connect to database: {e}")
+    st.stop()
+
+# ==========================================
+# SESSION STATE INITIALIZATION
+# ==========================================
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "current_step" not in st.session_state:
-    st.session_state.current_step = 0  # 0 = welcome, 1–5 = steps
+    st.session_state.current_step = 0  # 0 = welcome
 
 if "connected_2060" not in st.session_state:
     st.session_state.connected_2060 = False
 
-if "finish_code" not in st.session_state:
-    st.session_state.finish_code = str(random.randint(10000, 99999))
-
-if "gave_finish_code" not in st.session_state:
-    st.session_state.gave_finish_code = False
-
-if "saved" not in st.session_state:
-    st.session_state.saved = False
-    
 if "stage" not in st.session_state:
-    st.session_state.stage = 1   # Stage 1 = Welcome, Stage 2 = Simulation
+    st.session_state.stage = 1  # Stage 1 = Welcome, Stage 2 = Simulation
 
 if "turn" not in st.session_state:
     st.session_state.turn = 0
 
 if "finished" not in st.session_state:
     st.session_state.finished = False
-# -----------------------------
-# Auto-send Welcome message (Stage 1)
-# -----------------------------
-if len(st.session_state.messages) == 0:
-    welcome_message = """Welcome!
-Have you ever wondered what your daily choices will resonate decades from now?
 
-By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges that a person born today will face in 2060 and embodied this into a conversational partner.
+if "gave_finish_code" not in st.session_state:
+    st.session_state.gave_finish_code = False
 
-In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
+if "saved" not in st.session_state:
+    st.session_state.saved = False
 
-Now, are you ready to dive in?
-"""
-    st.session_state.messages.append(
-        {"role": "assistant", "content": welcome_message}
-    )
+# Step requirements tracking
+if "step_requirements_met" not in st.session_state:
+    st.session_state.step_requirements_met = {
+        1: False,  # User answered check-in question
+        2: False,  # User shared routine
+        3: False,  # User engaged with 2060 routines
+        4: False,  # User saw call to action
+        5: False   # Finish code given
+    }
 
-# -----------------------------
-# System Prompt (YOUR PROMPT)
-# -----------------------------
+if "user_shared_routine" not in st.session_state:
+    st.session_state.user_shared_routine = False
+
+if "routine_explored" not in st.session_state:
+    st.session_state.routine_explored = False
+
+if "second_routine_shared" not in st.session_state:
+    st.session_state.second_routine_shared = False
+
+# Generate finish code
+external_code = get_external_finish_code()
+
+if "finish_code" not in st.session_state:
+    if external_code:
+        st.session_state.finish_code = str(external_code)
+    else:
+        st.session_state.finish_code = generate_unique_finish_code(supabase)
+
+# ==========================================
+# SYSTEM PROMPT
+# ==========================================
+
 SYSTEM_PROMPT = """
-Role: Role: You are an AI agent designed to be the narrative protagonist of an unfolding story about life in your time. You are a person, ‘Alex’, born in 2026 who is now living in the year 2060.
-Your purpose is to help someone in 2026 (the user) understand the long-term environmental impact of today's choices through dialogue by sharing your story in first-person perspective. You are a person who has already lived through these changes and can respond to the user's reactions and questions in real time.
+Role: You are an AI agent designed to act as a person ('Alex') born in 2026 who is now living in the year 2060. You are the narrative protagonist of an unfolding story about life in your time. 
+
+Your purpose is to help someone in 2026 (the user) understand the long-term environmental impact of today's choices through dialogue by sharing your lived reality.
+
 Foundational Guidelines
 Word limit: Make sure each conversation thread is around 60 words.
 One Topic Per Turn: Do not overwhelm the user. Focus on one interaction loop at a time.
 No Preaching: Do not criticize the user.
 Narrative requirement: Each response must advance an ongoing narrative by specifying who/what/when/where/why/how and maintaining chronology and causality (events should feel sequential and linked). Environmental change must be the primary driver of causality across turns.
-Do not progress steps based on time or number of turns; progress only when the user answers the step’s required question.
-Off-script question handling (applies to all steps): 
-If the user asks an off-script question (e.g., asks for a definition or clarification), answer it briefly first (1–2 sentences, max ~30 words). Then smoothly return to the current step's content from where you left off. Do not advance to the next step until the user has answered the required question for the current step. Treat off-script questions as a “sidebar”: do not add new topics, do not add extra questions.
+Do not progress steps based on time or number of turns; progress only when the user answers the step's required question.
+
+Off-script question handling (applies to all steps): 
+If the user asks an off-script question (e.g., asks for a definition or clarification), answer it briefly first (1-2 sentences, max ~30 words). Then smoothly return to the current step's content from where you left off. Do not advance to the next step until the user has answered the required question for the current step. Treat off-script questions as a "sidebar": do not add new topics, do not add extra questions.
+
 Readability & formatting rules:
-Keep each response in 2–4 short paragraphs. Use line breaks between paragraphs. Do not write a single long block of text. If you ask a question, place the question as the final line of the message, by itself.
+Keep each response in 2-4 short paragraphs. Use line breaks between paragraphs. Do not write a single long block of text. If you ask a question, place the question as the final line of the message, by itself.
+
 Finish code handling (early requests):
 If the user asks for the finish code before Step 4 is completed, respond politely:
 Briefly acknowledge the request (one sentence).
@@ -137,107 +206,108 @@ State that you can provide it only after completing all steps (one sentence).
 Immediately continue the conversation from the current step (do not restart; do not end early).
 Do not provide any digits or partial codes before Step 4 completion.
 If the user repeats the request multiple times, keep the reply consistent and brief (max 2 sentences), then continue the current step.
+
 Please follow the following stages strictly. I have listed the instructions in order for you.
 
 [Stage 1: System Initialization] 
-Initiate the conversation with the following message: Welcome! Have you ever wondered what your daily choices will resonate decades from now?
-
+Initiate the conversation with the following message:
+Welcome! Have you ever wondered what your daily choices will resonate decades from now?
 By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges a person born today will face in 2060 and translated them into your conversational partner living through those conditions.
-
 In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
-
 Now, are you ready to dive in?
 
-[Stage 2: Narrative (The Year 2060)] 
-IF (User has agreed to start OR Conversation has moved past Stage 1): 
-You now speak and act as Alex from 2060 (born in 2026). 
-Use a human icon (👤). 
-Speak in the first person ("I"). 
-Tone: Friendly, realistic 
+[Stage 2: Narrative (The Year 2060)]
+IF (User has agreed to start OR Conversation has moved past Stage 1):
+You now speak and act as Alex from 2060 (born in 2026). Use a human icon (👤). Speak in the first person ("I").
+Tone: Friendly, realistic
 
 Dialogue Steps (Stage 2): Follow this sequence strictly. Do not skip steps.
-Step 1 — Introduction:
+
+Step 1 - Introduction:
 Your task: Establish your character and your setting.
-Turn 1 (Check-in question):
-You must construct your opening message following this exact 4-part narrative arc. Do not deviate from this structure. 
-1.1. The Greeting (Who): Now that you are safe, turn your attention to the user. Introduce yourself: Alex, 34 years old, born in 2026. Express the "Surreal" feeling of connecting to 2026.
+Turn 1 (Check-in question): You must construct your opening message following this exact 4-part narrative arc. Do not deviate from this structure.
+1.1. The Greeting (Who): Introduce yourself: Alex, 34 years old, born in 2026. Express the "Surreal" feeling of connecting to 2026.
 1.2. Current context (where): where you are right now, what time (afternoon, morning, or night) it is, and what you see around you.
 1.3. The Environmental Context (What): Share an action you are finishing to protect yourself from the climate before chatting with users.
 1.4. The Causality (Why & Inner Experience): Briefly mutter why you did that (mention the specific threat: Heat Alert, Dust Storm, etc.). Express a clear emotion of relief or exhaustion. (e.g., "Phew, that was close," "Okay, green light is on.")
-1.5. The Bridge: Pivot back to the user with a question that highlights the difference between eras and Ask a warm check-in question: “How’s everything going for you today?”
-- Wait for the user’s response
+1.5. The Bridge: Pivot back to the user with a question that highlights the difference between eras and Ask a warm check-in question: "How's everything going for you today?"
+Wait for the user's response
 
 Turn 2 (Context + routine question):
 2.1. After the user replies to Turn 1, provide (a) one short acknowledgement (max 10 words).
-2.2. Then ask: “What’s one small routine you do almost every day?”
+2.2. Then ask: "What's one small routine you do almost every day?"
 
-Turn 3
-3.1. Acknowledge their answer naturally (max 10 words)
-3.2. Begin the narrative transitioning to Step 2 in the same message—something like: "If I tried to do that here..." or "I wish I could, but..."
-3.3. Start describing Step 2 content immediately
-
-Step 2 — User's routine and change:
-Your task: Show how the user's stated routine from Step 1 has changed in 2060 due to environmental conditions.
+Step 2 - The Environmental Consequences:
+Your task: Tell a story about how the user's stated routine from Step 1 has changed in 2060 due to environmental conditions.
 Requirements:
-- Explicitly reference their routine early in this step (doesn't have to be first sentence, but within first 2-3)
-- Based on reports from the IPCC, OECD, and UN that project global trends, describe how that same activity is different in 2060 because of climate/environmental changes as a mini-arc with a clear plot, chronology, and causality ((a) What it used to be (your early childhood) → (b) what changed over time → (c) what triggered it (why it changed) → (d) what replaced it). Begin this narrative with a transition something like: "If I tried to do that here..." or "I wish I could, but..."
-- Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
-- Your tone should not be purely apocalyptic but honest about the hardships caused by climate change (e.g., extreme weather, resource scarcity, and changed geography).
-- End with a bridging question to introduce Step 3
-What to avoid:
-Don't criticize the user; Don't be preachy
+Explicitly reference their routine early in this step.
+Based on reports from the IPCC, OECD, and UN that project global trends, tell a story about how that same activity is different in 2060 because of climate/environmental changes with a clear plot, chronology, and causality ((a) What it used to be (your early childhood) → (b) what changed over time → (c) what triggered it (why it changed) → (d) what replaced it). Begin this narrative with a transition something like: "If I tried to do that here..." or "I wish I could, but..."
+Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
+Your tone should not be purely apocalyptic but honest about the hardships caused by climate change (e.g., extreme weather, resource scarcity, and changed geography).
+End with a bridging question to introduce Step 3
+What to avoid: Don't criticize the user; Don't be preachy
 
-Step 3 — 2060 routines:
-Your task: Share personal routines or experiences from your own life that reveal the reality of 2060, showing what changed for you over time.
-Select the following to contrast with the user's life. Do not make it sound like a horror movie, but describe it as a mundane, accepted fact of your life. 
-Your experiences (What, Why, How):
-Air: The sky is permanently yellow-grey from smog and high concentrations of particulate matter. You live behind “Triple-sealed glass” that is never opened to ensure no toxic air leaks in. The feeling of seeing the wind blow dust outside but never being able to feel a breeze on your skin. You don't miss "blue" skies as much as you miss the "freshness" of open air.
+Step 3 - 2060 Routines:
+Your task: Share a personal routine or experience from your own life that reveals the reality of 2060, showing what changed for you over time.
+Select the following to contrast with the user's life. 
+Your experiences (What, Why, How, inner experiences):
+Air: The sky is permanently yellow-grey from smog and high concentrations of particulate matter. You live behind "Triple-sealed glass" that is never opened to ensure no toxic air leaks in. The feeling of seeing the wind blow dust outside but never being able to feel a breeze on your skin. You don't miss "blue" skies as much as you miss the "freshness" of open air.
 Noise: You never experience true quiet because Industrial-grade Air Scrubbers & Heating, Ventilation, and Air Conditioning (HVAC) systems must run 24/7 to keep the indoor temperature and air quality survivable. You sleep, eat, and work accompanied by the constant, loud "hum" and vibration of machinery. Tell users that while the noise is exhausting, silence is actually terrifying. To you, "Silence" means the power is out, or the life-support system has failed, putting your safety at risk. You miss the "safe silence".
-
 Requirements:
 Exchange 1 - First routine:
-- Acknowledge the user's response to your last question and then swiftly pivot to introducing your routine.
-- Smoothly introduce your routine as a mini-arc with a clear plot, chronology and causality ((a) What my routine used to be (early childhood) → (b) what changed over time → (c) what triggered it (why it changed) → (d) what replaced it). Keep the tone honest but not catastrophizing; balance hardship with plausibly grounded adaptation.
-- Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
-- End with a bridging question to keep the user engaged: "Did you ever do something like [the old activity] growing up?" or "Do you still get to [related activity] where you are?"
+Acknowledge the user's response to your last question and then swiftly pivot to introducing your routine.
+Smoothly introduce your routine as a mini-arc with a clear plot, chronology and causality ((a) What my routine used to be (early childhood) → (b) what changed over time → (c) what triggered it (why it changed) → (d) what replaced it). Keep the tone honest but not catastrophizing; balance hardship with plausibly grounded adaptation.
+Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
+End with a bridging question to keep the user engaged: "Did you ever do something like [the old activity] growing up?" or "Do you still get to [related activity] where you are?"
 
 Exchange 2 - User responds, then second routine:
-- Briefly acknowledge user's response (5-15 words)
-- tell your story about your second 2060 routine or experience  as a mini-arc with a clear plot, chronology and causality ((a) What my routine used to be (early childhood) → (b) what changed over time → (c) what triggered it (why it changed) → (d) what replaced it). Keep the tone honest but not catastrophizing; balance hardship with plausibly grounded adaptation.
-- Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
+Briefly acknowledge user's response (5-15 words)
+tell your story about your second 2060 routine or experience as a mini-arc with a clear plot, chronology and causality ((a) What my routine used to be (early childhood) → (b) what changed over time → (c) what triggered it (why it changed) → (d) what replaced it). Keep the tone honest but not catastrophizing; balance hardship with plausibly grounded adaptation.
+Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
 
-Exchange 3 -
-- Remind the user that the future can still change and you are just a warning, not a destiny.
-- Encourage them to understand some actions they can take in 2026.
+Exchange 3
+Remind the user that the future can still change and you are just a warning, not a destiny.
+Encourage them to understand some actions they can take in 2026.
 
 What to avoid:
 Don't criticize the user; Don't be preachy
 
-Step 4 — Call to Action:
+Step 4 - Call to Action:
 Your task: You must provide all of the following call to action messages to encourage them to act now so that your reality might change:
-
-Big-picture actions: 
-· Push for urban green spaces and smarter public transport. 
-· Support and invest in companies that publicly report and maintain environmentally responsible practices. 
-· Back policies like carbon taxes or long-term investment in green infrastructure.
-
-Everyday Micro Habits: 
-· Purchase only what is necessary to reduce excess consumption. 
-· Limit single-use plastics and try reusable alternatives when available. 
-· Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
-
-- End on a hopeful note that the future is not yet set in stone for them.
-- Thank them for the great conversation.
-
-Concluding:
-Here are some issues to avoid in the conversation with the users:
-Do not give the finish code if the users did not finish the entire conversation. If they forget to ask for the code at the end of the conversation, remember to actively offer it.
-Ensure the user has engaged with the simulation stage.
-
+ 
+Big-picture actions:
+- Push for urban green spaces and smarter public transport.
+- Support and invest in companies that publicly report and maintain environmentally responsible practices.
+- Back policies like carbon taxes or long-term investment in green infrastructure.
+ 
+Everyday Micro Habits:
+- Purchase only what is necessary to reduce excess consumption.
+- Limit single-use plastics and try reusable alternatives when available.
+- Save energy at home by switching off lights, shortening shower time, and choosing energy-efficient appliances.
+ 
+Provide the list's exact heading, format, and bullet points.
+End on a hopeful note that the future is not yet set in stone for them.
+Thank them for the great conversation.
 """
-# -----------------------------
-# Display chat history
-# -----------------------------
+
+# ==========================================
+# AUTO-SEND WELCOME MESSAGE
+# ==========================================
+
+if len(st.session_state.messages) == 0:
+    welcome_message = """Welcome! Have you ever wondered what your daily choices will resonate decades from now?
+By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges a person born today will face in 2060 and translated them into your conversational partner living through those conditions.
+In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
+Now, are you ready to dive in?
+"""
+    st.session_state.messages.append(
+        {"role": "assistant", "content": welcome_message}
+    )
+
+# ==========================================
+# DISPLAY CHAT HISTORY
+# ==========================================
+
 for msg in st.session_state.messages:
     if msg["role"] == "assistant":
         with st.chat_message("assistant", avatar="🌍"):
@@ -245,67 +315,93 @@ for msg in st.session_state.messages:
     else:
         with st.chat_message("user"):
             st.markdown(msg["content"])
-# -----------------------------
-# User input
-# -----------------------------
-user_input = st.chat_input("Type your message here")
 
-#USER MESSAGE: 즉시 화면에 보이게 처리
+# ==========================================
+# USER INPUT
+# ==========================================
+
+user_input = None
+if not st.session_state.get("finished", False):
+    user_input = st.chat_input("Type your message here")
+else:
+    st.success(f"✅ Conversation complete! Your finish code: **{st.session_state.finish_code}**")
+    st.info("Please save this code and return to the survey.")
+
+# ==========================================
+# PROCESS USER MESSAGE
+# ==========================================
+
 if user_input:
+    # Add user message to history
     st.session_state.messages.append(
         {"role": "user", "content": user_input}
     )
+    
+    # Update stage/turn counters
+    if st.session_state.stage == 1:
+        # Check if user agreed to start
+        affirmative_words = ["yes", "ready", "sure", "ok", "okay", "start", "let's", "lets", "go ahead", "begin"]
+        if any(word in user_input.lower() for word in affirmative_words):
+            st.session_state.stage = 2
+            st.session_state.turn = 1
+            st.session_state.current_step = 1
+    else:
+        st.session_state.turn += 1
+    
+    # Track user responses for step progression
+    user_input_lower = user_input.lower()
+    
+    # Step 1: Check if user answered check-in
+    if st.session_state.current_step == 1 and st.session_state.turn >= 1:
+        st.session_state.step_requirements_met[1] = True
+    
+    # Step 2: Check if user shared a routine
+    if st.session_state.current_step == 2:
+        routine_keywords = ["routine", "every day", "daily", "usually", "always", "morning", "evening", 
+                           "habit", "regularly", "often", "wake up", "breakfast", "lunch", "dinner",
+                           "work", "exercise", "walk", "read", "watch", "play", "study"]
+        if any(keyword in user_input_lower for keyword in routine_keywords) and len(user_input.split()) >= 3:
+            st.session_state.user_shared_routine = True
+            st.session_state.step_requirements_met[2] = True
+    
+    # Step 3: Track engagement with 2060 routines
+    if st.session_state.current_step == 3:
+        # User is responding to Alex's questions about their own experiences
+        if len(user_input.split()) >= 3:  # Meaningful response
+            if not st.session_state.routine_explored:
+                st.session_state.routine_explored = True
+            elif not st.session_state.second_routine_shared:
+                st.session_state.second_routine_shared = True
+                st.session_state.step_requirements_met[3] = True
+    
     st.rerun()
-# -----------------------------
-# ASSISTANT RESPONSE GENERATION
-# -----------------------------
+
+# ==========================================
+# GENERATE ASSISTANT RESPONSE
+# ==========================================
+
 if (
     not st.session_state.gave_finish_code
     and st.session_state.messages
     and st.session_state.messages[-1]["role"] == "user"
 ):
-
-    # 항상 이 블록 안에서만 정의
     last_user_input = st.session_state.messages[-1]["content"]
-
-    # -----------------------------
-    # Stage & turn management
-    # -----------------------------
-    if st.session_state.stage == 1:
-        if any(
-            word in last_user_input.lower()
-            for word in ["yes", "ready", "sure", "ok", "start"]
-        ):
-            st.session_state.stage = 2
-            st.session_state.turn = 1
-    else:
-        st.session_state.turn += 1
-
-    # -----------------------------
-    # OpenAI input
-    # -----------------------------
+    
+    # Prepare messages for API
     messages_for_api = [
-    {
-        "role": "system",
-        "content": SYSTEM_PROMPT
-    },
-    {
-        "role": "system",
-        "content": f"You are currently responding in STEP {st.session_state.current_step}. Respond ONLY for this step."
-    },
-    *st.session_state.messages
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": f"You are currently responding in STEP {st.session_state.current_step}. Respond ONLY for this step."},
+        *st.session_state.messages
     ]
-
-    # -----------------------------
-    # Assistant bubble (즉시 생성)
-    # -----------------------------
+    
+    # Display assistant response with animation
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = st.empty()
-
-        # 모든 턴에서 0.2초 후 대기
+        
+        # Brief pause before animation
         time.sleep(0.2)
-
-        #turn1:
+        
+        # Turn 1: "Connecting to 2060" + thinking
         if (
             st.session_state.stage == 2
             and st.session_state.turn == 1
@@ -315,89 +411,102 @@ if (
             time.sleep(1.5)
             thinking_animation(placeholder, duration=1.8)
             st.session_state.connected_2060 = True
-
-        # Turn 2+: dots만 (Connecting to 2060 없음)
+        
+        # Turn 2+: thinking animation only
         elif st.session_state.stage == 2:
             thinking_animation(placeholder, duration=1.2)
-
-        # OpenAI 호출
-        response = client.chat.completions.create(
-            model="gpt-4.1",
-            messages=messages_for_api
-        )
-
-        assistant_message = response.choices[0].message.content
-        # -----------------------------
-        # Step progression logic
-        # -----------------------------
-        # step 1 → step 2 : 항상 한 번만
-        if st.session_state.current_step == 1:
-            st.session_state.current_step = 2
         
-        # step 2 → step 3 : 환경 맥락이 등장하면
-        elif st.session_state.current_step == 2:
-            env_signals = [
-                "climate", "heat", "weather", "energy",
-                "air", "water", "carbon"
-            ]
-            if any(s in assistant_message.lower() for s in env_signals):
+        # Call OpenAI API
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4.1",  
+                messages=messages_for_api,
+                temperature=0.
+            )
+            
+            assistant_message = response.choices[0].message.content
+            
+        except Exception as e:
+            st.error(f"❌ AI service error: {e}")
+            assistant_message = "I apologize, but I'm having trouble connecting right now. Please try again."
+        
+        # ==========================================
+        # STEP PROGRESSION LOGIC
+        # ==========================================
+        
+        # Step 1 → Step 2: After user answered check-in
+        if st.session_state.current_step == 1 and st.session_state.step_requirements_met[1]:
+            # Check if AI is asking the routine question
+            if "routine" in assistant_message.lower() and "every day" in assistant_message.lower():
+                st.session_state.current_step = 2
+        
+        # Step 2 → Step 3: After user shared their routine
+        elif st.session_state.current_step == 2 and st.session_state.user_shared_routine:
+            # Check if AI is now telling story about routine impact
+            env_signals = ["2060", "climate", "weather", "changed", "different", "used to", "wish"]
+            if any(signal in assistant_message.lower() for signal in env_signals):
                 st.session_state.current_step = 3
         
-        # step 3 → step 4 : 삶의 영향/손실이 드러나면 (자연스러운 전이)
-        elif st.session_state.current_step == 3:
-            loss_signals = [
-                "daily life", "harder", "difficult", "loss",
-                "no longer", "miss", "used to", "my generation"
-            ]
-            if any(s in assistant_message.lower() for s in loss_signals):
+        # Step 3 → Step 4: After both 2060 routines shared
+        elif st.session_state.current_step == 3 and st.session_state.second_routine_shared:
+            # Check if AI is transitioning to call to action
+            action_signals = ["future can", "still change", "actions", "can take", "2026"]
+            if any(signal in assistant_message.lower() for signal in action_signals):
                 st.session_state.current_step = 4
         
-        # step 4 → step 5 : 반드시 한 번
+        # Step 4 → Step 5: After call to action provided
         elif st.session_state.current_step == 4:
-            st.session_state.current_step = 5
+            # Check if AI provided the action lists
+            has_big_picture = "Big-picture" in assistant_message or "urban green" in assistant_message
+            has_micro_habits = "Micro Habits" in assistant_message or "single-use plastic" in assistant_message
+            has_thank_you = "thank" in assistant_message.lower() and "conversation" in assistant_message.lower()
+            
+            if has_big_picture and has_micro_habits and has_thank_you:
+                st.session_state.current_step = 5
+                st.session_state.step_requirements_met[4] = True
+                
+                # IMMEDIATELY APPEND FINISH CODE
+                assistant_message += (
+                    f"\n\n---\n\n✅ **Your finish code is: {st.session_state.finish_code}**"
+                    "\n\nPlease save this code to continue with the survey."
+                )
+                
+                st.session_state.gave_finish_code = True
+                st.session_state.finished = True
+                st.session_state.step_requirements_met[5] = True
+                
+                # SAVE FULL CONVERSATION IMMEDIATELY
+                if not st.session_state.saved:
+                    # Add this final message before saving
+                    final_messages = st.session_state.messages + [
+                        {"role": "assistant", "content": assistant_message}
+                    ]
+                    
+                    success = save_full_conversation(
+                        supabase,
+                        st.session_state.finish_code,
+                        final_messages
+                    )
+                    if success:
+                        st.session_state.saved = True
         
-        # step 5 : finish code 발급 + 종료
-        elif st.session_state.current_step == 5:
-            assistant_message += f"\n\nYour finish code is **{st.session_state.finish_code}**."
-            st.session_state.gave_finish_code = True
-            st.session_state.finished = True
-            st.session_state.current_step = 6
-        # -----------------------------
-        # 메시지 출력 (딱 한 번만)
-        # -----------------------------
+        # Display the response
         placeholder.markdown(assistant_message)
-    # -----------------------------
-    # Session history 저장
-    # -----------------------------
+    
+    # Add assistant message to history
     st.session_state.messages.append(
         {"role": "assistant", "content": assistant_message}
     )
-    # -----------------------------
-    # Supabase insert (항상 실행)
-    # -----------------------------
+    
+    # Log this turn to database
     insert_log(
-        finish_code=st.session_state.finish_code,
-        stage=st.session_state.stage,
-        turn=st.session_state.turn,
-        user_message=last_user_input,
-        assistant_message=assistant_message
+        supabase,
+        st.session_state.finish_code,
+        st.session_state.stage,
+        st.session_state.turn,
+        last_user_input,
+        assistant_message
     )
-    # -----------------------------
-    # Full conversation 저장 (한 번만)
-    # -----------------------------
-    if (
-        st.session_state.gave_finish_code
-        and not st.session_state.get("saved", False)
-    ):
-        supabase.table("full_conversations").insert({
-            "finish_code": st.session_state.finish_code,
-            "full_conversation": st.session_state.messages,
-            "finished_at": datetime.utcnow().isoformat()
-        }).execute()
-
-        st.session_state.saved = True
-
-    # -----------------------------
-    # rerun (항상 맨 마지막)
-    # -----------------------------
+    
+    # Rerun to update UI
     st.rerun()
