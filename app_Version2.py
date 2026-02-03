@@ -81,7 +81,7 @@ def check_user_intent(client, user_message, expected_intent):
         )
         
         result = response.choices[0].message.content.strip().upper()
-        return result "Yes" in result
+        return result == "Yes"
     
     except Exception as e:
         # Fallback: if AI check fails, assume True to keep conversation flowing
