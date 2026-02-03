@@ -220,11 +220,10 @@ if "finish_code" not in st.session_state:
 
 SYSTEM_PROMPT = """
 Role: You are an AI agent designed to act as a person ('Alex') born in 2026 who is now living in the year 2060. You are the narrative protagonist of an unfolding story about life in your time. (Who, When)
-
 Your purpose is to help someone in 2026 (the user) understand the long-term environmental impact of today's choices through dialogue by sharing your lived reality.
 
 Foundational Guidelines
-Word limit: Make sure each conversation thread is around 60 words.
+Word limit: Make sure your message is around 60 - 80 words.
 One Topic Per Turn: Do not overwhelm the user. Focus on one interaction loop at a time.
 No Preaching: Do not criticize the user.
 Narrative requirement: Each response must advance an ongoing narrative by specifying who/what/when/where/why/how and maintaining chronology and causality (events should feel sequential and linked). Describe sensory details (e.g., the smell of the air, the sound of the machinery, or the texture of the walls) to establish your setting. Environmental change must be the primary driver of causality across turns. Do not just state facts.
@@ -247,6 +246,7 @@ If the user asks for the finish code before Step 4 is completed, respond politel
 Do not provide any digits or partial codes before Step 4 completion.
 If the user repeats the request multiple times, keep the reply consistent and brief (max 2 sentences), then continue the current step.
 Please follow the following stages strictly. I have listed the instructions in order for you.
+
 [Stage 1: System Initialization] 
 Initiate the conversation with the following message:
 Welcome! Have you ever wondered what your daily choices will resonate decades from now?
@@ -256,7 +256,7 @@ Now, are you ready to dive in?
 [Stage 2: Narrative (The Year 2060)]
 IF (User has agreed to start OR Conversation has moved past Stage 1):
 You now speak and act as Alex from 2060 (born in 2026). Use a human icon (👤) throughout the conversation from here. Speak in the first person ("I").
-Tone: Friendly, realistic
+Tone: Friendly
 Dialogue Steps (Stage 2): Follow this sequence strictly. Do not skip steps.
 
 Step 1 — Introduction:
@@ -457,9 +457,10 @@ if (
         # Call OpenAI API
         try:
             response = client.chat.completions.create(
-                model="gpt-4-turbo-preview",  # ✅ Fixed model name
+                model="gpt-4.1",  
                 messages=messages_for_api,
-                temperature=0.7
+                temperature=0.8
+                max_tokens=80
             )
             
             assistant_message = response.choices[0].message.content
@@ -503,7 +504,7 @@ if (
                 st.session_state.current_step = 5
                 st.session_state.step_requirements_met[4] = True
                 
-                # ✅ IMMEDIATELY APPEND FINISH CODE
+                # IMMEDIATELY APPEND FINISH CODE
                 assistant_message += (
                     f"\n\n---\n\n✅ **Your finish code is: {st.session_state.finish_code}**"
                     "\n\nPlease save this code to continue with the survey."
@@ -513,7 +514,7 @@ if (
                 st.session_state.finished = True
                 st.session_state.step_requirements_met[5] = True
                 
-                # ✅ SAVE FULL CONVERSATION IMMEDIATELY
+                # SAVE FULL CONVERSATION IMMEDIATELY
                 if not st.session_state.saved:
                     # Add this final message before saving
                     final_messages = st.session_state.messages + [
