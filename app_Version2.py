@@ -459,7 +459,7 @@ if (
                 model="gpt-4.1",  
                 messages=messages_for_api,
                 temperature=0.8,
-                max_tokens=110 - 140
+                max_tokens=110
             )
             
             assistant_message = response.choices[0].message.content
