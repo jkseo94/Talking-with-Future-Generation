@@ -336,7 +336,7 @@ if len(st.session_state.messages) == 0:
 Have you ever wondered what your daily choices will resonate decades from now?
 By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges a person born today will face in 2060 and translated them into your conversational partner living through those conditions.
 
-In a moment, you will engage in a dialogue with a person living in the year 2060 (Who). This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
+In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
 
 Now, are you ready to dive in?
 """
