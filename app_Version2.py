@@ -41,9 +41,9 @@ def generate_unique_finish_code(supabase):
     return str(int(time.time() * 1000) % 100000)
 
 
-def thinking_animation(placeholder, duration=2.5, interval=0.4):
+def thinking_animation(placeholder, duration=3.8, interval=0.4):
     """iMessage-style thinking animation with dots."""
-    dots = [".", "..", "..."]
+    dots = [".","..", "..."]
     start = time.time()
     i = 0
     while time.time() - start < duration:
@@ -81,7 +81,7 @@ def check_user_intent(client, user_message, expected_intent):
         )
         
         result = response.choices[0].message.content.strip().upper()
-        return result == "Yes"
+        return result == "YES"
     
     except Exception as e:
         # Fallback: if AI check fails, assume True to keep conversation flowing
@@ -172,7 +172,7 @@ if "connected_2060" not in st.session_state:
     st.session_state.connected_2060 = False
 
 if "stage" not in st.session_state:
-    st.session_state.stage = 1
+    st.session_state.stage = 1  # Stage 1 = Welcome, Stage 2 = Simulation
 
 if "turn" not in st.session_state:
     st.session_state.turn = 0
@@ -280,12 +280,12 @@ Requirements:
 •	Based on reports from the IPCC, OECD, and UN that project global trends, tell a story about how that same activity is different in 2060 because of climate/environmental changes with a clear plot, chronology, and causality ((a) What it used to be (your early childhood) → (b) what changed over time → (c) the tipping point (specific event/trigger that made old way impossible) → (d) what replaced it). Begin this narrative with a transition something like: "If I tried to do that here..." or "I wish I could, but..."
 •	Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
 •	Your tone should not be purely apocalyptic but honest about the hardships caused by climate change (e.g., extreme weather, resource scarcity, and changed geography).
-•	Word limit: Make sure your message is around 110 words.
+•	Word limit: Make sure your message is around 100 words.
 •	End with a bridging question to introduce Step 3
 What to avoid: Don't criticize the user; Don't be preachy
 
 Step 3 — 2060 Routines:
-Your task: Share your experiences (Air, Noise), showing what changed for you over time. Select the following experiences to contrast with the user's life. 
+Your task: Share your experiences (Both Air and Noise themes), showing what changed for you over time. Select the following experiences to contrast with the user's life. 
 - Your experiences (What, Why, How, inner experiences):
 1. Air: The sky is permanently yellow-grey from smog and high concentrations of particulate matter. You live behind “Triple-sealed glass” that is never opened to ensure no toxic air leaks in. The feeling of seeing the wind blow dust outside but never being able to feel a breeze on your skin. You don't miss "blue" skies as much as you miss the "freshness" of open air.
 2. Noise: You never experience true quiet because Industrial-grade Air Scrubbers & Heating, Ventilation, and Air Conditioning (HVAC) systems must run 24/7 to keep the indoor temperature and air quality survivable. You sleep, eat, and work accompanied by the constant, loud "hum" and vibration of machinery. Tell users that while the noise is exhausting, silence is actually terrifying. To you, "Silence" means the power is out, or the life-support system has failed, putting your safety at risk. You miss the "safe silence". (Inner-world details)
@@ -295,13 +295,13 @@ Exchange 1 - First routine:
 •	Acknowledge the user's response and then swiftly pivot to introducing your own routine.
 •	Smoothly introduce your routine as a mini-arc with a clear plot, chronology and causality ((a) What it used to be (your early childhood) → (b) what changed over time → (c) the tipping point (specific event/trigger that made old way impossible) → (d) what replaced it). Keep the tone honest but not catastrophizing; balance hardship with plausibly grounded adaptation.
 •	Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
-•	Word limit: Make sure your message is around 110 words.
+•	Word limit: Make sure your message is around 100 words.
 •	End with a bridging question to keep the user engaged: "Did you ever do something like [the old activity] growing up?" or "Do you still get to [related activity] where you are?"
 Exchange 2 - User responds, then second routine:
 •	Briefly acknowledge user's response (5-15 words)
 •	Tell your story about your second above 2060 routine as a mini-arc with a clear plot, chronology and causality ((a) What it used to be (your early childhood) → (b) what changed over time → (c) the tipping point (specific event/trigger that made old way impossible) → (d) what replaced it) → (d) what replaced it). Keep the tone honest but not catastrophizing; balance hardship with plausibly grounded adaptation.
 •	Include brief inner-world detail that is emotionally balanced: one mild concern AND one coping/adaptation or source of hope. 
-•	Word limit: Make sure your message is around 110 words.
+•	Word limit: Make sure your message is around 100 words.
 Exchange 3
 •	Remind the user that the future can still change and you are just a warning, not a destiny.
 •	Encourage them to understand some actions they can take in 2026.
@@ -458,9 +458,9 @@ if (
         # Call OpenAI API
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",  
+                model="gpt-4o",
                 messages=messages_for_api,
-                temperature=0.8,
+                temperature=0.7
             )
             
             assistant_message = response.choices[0].message.content
@@ -504,7 +504,7 @@ if (
                 st.session_state.current_step = 5
                 st.session_state.step_requirements_met[4] = True
                 
-                # IMMEDIATELY APPEND FINISH CODE
+                # ✅ IMMEDIATELY APPEND FINISH CODE
                 assistant_message += (
                     f"\n\n---\n\n✅ **Your finish code is: {st.session_state.finish_code}**"
                     "\n\nPlease save this code to continue with the survey."
@@ -514,7 +514,7 @@ if (
                 st.session_state.finished = True
                 st.session_state.step_requirements_met[5] = True
                 
-                # SAVE FULL CONVERSATION IMMEDIATELY
+                # ✅ SAVE FULL CONVERSATION IMMEDIATELY
                 if not st.session_state.saved:
                     # Add this final message before saving
                     final_messages = st.session_state.messages + [
