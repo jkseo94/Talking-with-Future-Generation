@@ -65,7 +65,7 @@ def check_user_intent(client, user_message, expected_intent):
     """
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "system",
@@ -456,7 +456,7 @@ if (
         # Call OpenAI API
         try:
             response = client.chat.completions.create(
-                model="gpt-4.1",  
+                model="gpt-4o",  
                 messages=messages_for_api,
                 temperature=0.8,
             )
