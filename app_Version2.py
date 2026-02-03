@@ -459,7 +459,7 @@ if (
             response = client.chat.completions.create(
                 model="gpt-4.1",  
                 messages=messages_for_api,
-                temperature=0.8
+                temperature=0.8,
                 max_tokens=80
             )
             
