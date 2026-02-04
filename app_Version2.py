@@ -541,7 +541,7 @@ if (
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=messages_for_api,
-                temperature=0.7,
+                temperature=0.8,
             )
             assistant_message = response.choices[0].message.content
         except Exception as e:
