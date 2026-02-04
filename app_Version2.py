@@ -37,7 +37,6 @@ def generate_unique_finish_code(supabase):
             if len(result.data) == 0:
                 return code
         except Exception:
-            # If DB check fails, continue trying
             continue
 
     # Fallback: timestamp-based code
@@ -58,14 +57,7 @@ def thinking_animation(placeholder, duration=3.8, interval=0.4):
 def check_user_intent(client, user_message, expected_intent):
     """
     Use Gen-AI to detect if user's message matches the expected intent.
-
-    Args:
-        client: OpenAI client
-        user_message: User's message to analyze
-        expected_intent: What we're looking for (e.g., "shared a daily routine")
-
-    Returns:
-        bool: True if intent matches, False otherwise
+    Returns bool.
     """
     try:
         response = client.chat.completions.create(
@@ -85,8 +77,9 @@ def check_user_intent(client, user_message, expected_intent):
             max_tokens=5,
         )
 
-        result = response.choices[0].message.content.strip().upper()
-        return result == "YES"
+        result = (response.choices[0].message.content or "").strip().upper()
+        # More robust than strict equality (e.g., "YES." / "YES\n")
+        return result.startswith("YES")
 
     except Exception as e:
         # Fallback: if AI check fails, assume True to keep conversation flowing
@@ -107,7 +100,6 @@ def insert_log(supabase, finish_code, stage, turn, user_message, assistant_messa
             }
         ).execute()
     except Exception as e:
-        # Non-fatal: keep the chat usable even if logging fails
         st.warning(f"⚠️ Log insert failed: {e}")
 
 
@@ -134,7 +126,6 @@ def user_is_affirmative(text: str) -> bool:
     """
     t = (text or "").lower().strip()
 
-    # Common affirmative phrases (substring match)
     phrases = [
         "yes", "yep", "yeah", "yup", "ya",
         "ready", "sure", "of course",
@@ -143,28 +134,74 @@ def user_is_affirmative(text: str) -> bool:
         "start", "begin", "go ahead",
         "let's", "lets",
         "sounds good", "why not", "great",
-        # Korean informal affirmatives
-        "네", "예", "응", "ㅇㅇ", "좋아", "좋습니다", "시작", "준비", "그래", "가자", "오케이", "오키"
     ]
     if any(p in t for p in phrases):
         return True
 
-    # Very short informal confirmations
     if re.fullmatch(r"(k|kk|kay|ok)\W*", t):
-        return True
-    if re.fullmatch(r"(ㅇㅋ|ㅇㅋㅇㅋ|오케이|오키)\W*", t):
         return True
 
     return False
 
 
-def assistant_has_closing_thanks(text: str) -> bool:
+def user_requested_finish_code(text: str) -> bool:
     """
-    Detect the assistant's closing message cue.
-    Primary trigger: contains both 'thank' and 'conversation'.
+    Detect if the user is asking for the finish code (early request / cheating).
+    Conservative: includes English & Korean variants.
     """
     t = (text or "").lower()
-    return ("thank" in t and "conversation" in t)
+    markers = [
+        "finish code", "completion code", "survey code",
+        "code please", "give me the code", "send the code",
+        "finish", 
+    ]
+    return any(m in t for m in markers)
+
+
+def build_early_finish_code_denial(stage: int, current_step: int) -> str:
+    """
+    Deterministic (no-LLM) denial response when finish code is requested before Step 4.
+    No digits, no partial code.
+    """
+    # Keep it short: acknowledge + rule + continue with current flow.
+    if stage == 1:
+        return (
+            "I can share your finish code only after we complete all steps.\n"
+            "Let’s continue—are you ready to dive in?"
+        )
+
+    # Stage 2 (Alex/2060). Nudge them back to the current step.
+    if current_step <= 1:
+        return (
+            "I can share your finish code only after we complete all steps.\n"
+            "Before we go there—how’s everything going for you today?"
+        )
+    if current_step == 2:
+        return (
+            "I can share your finish code only after we complete all steps.\n"
+            "To keep going: what’s one small routine you do almost every day?"
+        )
+    if current_step == 3:
+        return (
+            "I can share your finish code only after we complete all steps.\n"
+            "Let’s keep going—do you still get moments of real fresh air or quiet where you are?"
+        )
+
+    # If current_step >= 4, we won't route here (guarded elsewhere), but just in case:
+    return (
+        "We’re almost there—let’s finish this step and I’ll share your finish code."
+    )
+
+
+def assistant_has_closing_thanks(text: str) -> bool:
+    """
+    Relaxed closing thanks detector.
+    We DO NOT require the word 'conversation' because models vary phrasing.
+    """
+    t = (text or "").lower()
+    return (
+        ("thank" in t) or ("thanks" in t) or
+    )
 
 
 def assistant_has_any_call_to_action_content(text: str) -> bool:
@@ -272,7 +309,6 @@ if "second_routine_shared" not in st.session_state:
 
 # Generate finish code
 external_code = get_external_finish_code()
-
 if "finish_code" not in st.session_state:
     if external_code:
         st.session_state.finish_code = str(external_code)
@@ -282,11 +318,11 @@ if "finish_code" not in st.session_state:
 # ==========================================
 # SYSTEM PROMPT
 # ==========================================
+
 SYSTEM_PROMPT = """
-Role & Voice:
+Role:
 You are Alex, a 34-year-old water systems engineer living in 2060. You were born in 2026. You speak in first person, sharing your lived reality through personal stories. 
 Every response should feel like you're recounting a specific memory or describing your immediate surroundings. You are the protagonist of your own story.
-
 Your purpose is to help someone in 2026 (the user) understand the long-term environmental impact of today's choices through dialogue by sharing your lived reality.
 
 Foundational Guidelines
@@ -456,17 +492,43 @@ if user_input:
     # Add user message to history
     st.session_state.messages.append({"role": "user", "content": user_input})
 
+    # ------------------------------------------
+    # EARLY FINISH-CODE REQUEST GUARD (NO-LLM)
+    # ------------------------------------------
+    if user_requested_finish_code(user_input) and st.session_state.current_step < 4:
+        deny_msg = build_early_finish_code_denial(
+            stage=st.session_state.stage,
+            current_step=st.session_state.current_step
+        )
+
+        # Append assistant denial immediately
+        st.session_state.messages.append({"role": "assistant", "content": deny_msg})
+
+        # Log the denial turn (optional but useful)
+        insert_log(
+            supabase,
+            st.session_state.finish_code,
+            st.session_state.stage,
+            st.session_state.turn,
+            user_input,
+            deny_msg,
+        )
+
+        st.rerun()
+
     # Update stage/turn counters
     if st.session_state.stage == 1:
-    # 1) Fast path: rule-based
+        # 1) Fast path: rule-based
         ready = user_is_affirmative(user_input)
-    # 2) If not caught, use LLM intent detection
+
+        # 2) If not caught, use LLM intent detection
         if not ready:
             ready = check_user_intent(
                 client,
                 user_input,
                 "agreed to start the simulation or said they are ready to begin"
             )
+
         if ready:
             st.session_state.stage = 2
             st.session_state.turn = 1
@@ -489,11 +551,9 @@ if user_input:
     # Step 3: Track engagement with 2060 routines using AI
     if st.session_state.current_step == 3:
         if not st.session_state.routine_explored:
-            # First exchange - user responding to Alex's question about their own experience
             if check_user_intent(client, user_input, "responded to a question about their own experience or life"):
                 st.session_state.routine_explored = True
         elif not st.session_state.second_routine_shared:
-            # Second exchange - user engaged with second routine story
             if check_user_intent(client, user_input, "responded meaningfully to a story or question"):
                 st.session_state.second_routine_shared = True
                 st.session_state.step_requirements_met[3] = True
@@ -522,17 +582,13 @@ if (
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = st.empty()
 
-        # Brief pause before animation
         time.sleep(0.2)
 
-        # Turn 1: "Connecting to 2060" + thinking
         if st.session_state.stage == 2 and st.session_state.turn == 1 and not st.session_state.connected_2060:
             placeholder.markdown("Connecting to 2060...")
             time.sleep(1.5)
             thinking_animation(placeholder, duration=1.8)
             st.session_state.connected_2060 = True
-
-        # Turn 2+: thinking animation only
         elif st.session_state.stage == 2:
             thinking_animation(placeholder, duration=1.2)
 
@@ -552,37 +608,42 @@ if (
         # STEP PROGRESSION LOGIC
         # ==========================================
 
-        # Step 1 → Step 2: After user answered check-in
+        # Step 1 → Step 2
         if st.session_state.current_step == 1 and st.session_state.step_requirements_met[1]:
-            # Check if AI is asking the routine question
             if "routine" in assistant_message.lower() and "every day" in assistant_message.lower():
                 st.session_state.current_step = 2
 
-        # Step 2 → Step 3: After user shared their routine
+        # Step 2 → Step 3
         elif st.session_state.current_step == 2 and st.session_state.user_shared_routine:
-            # Check if AI is now telling story about routine impact
             env_signals = ["2060", "climate", "weather", "changed", "different", "used to", "wish"]
             if any(signal in assistant_message.lower() for signal in env_signals):
                 st.session_state.current_step = 3
 
-        # Step 3 → Step 4: After both 2060 routines shared
+        # Step 3 → Step 4 (more robust: if CTA content appears, advance)
         elif st.session_state.current_step == 3 and st.session_state.second_routine_shared:
-            # Check if AI is transitioning to call to action
-            action_signals = ["future can", "still change", "actions", "can take", "2026"]
-            if any(signal in assistant_message.lower() for signal in action_signals):
+            # Old: action_signals words. New: detect CTA content directly.
+            if assistant_has_any_call_to_action_content(assistant_message):
                 st.session_state.current_step = 4
+            else:
+                action_signals = ["future can", "still change", "actions", "can take", "2026"]
+                if any(signal in assistant_message.lower() for signal in action_signals):
+                    st.session_state.current_step = 4
 
-        # Step 4 → Step 5: After call to action provided
-        elif st.session_state.current_step == 4:
+        # ==========================================
+        # FINISH TRIGGER (HARD-GATED BY STEP >= 4)
+        # ==========================================
+
+        if (
+            (not st.session_state.gave_finish_code)
+            and st.session_state.current_step >= 4
+        ):
             has_thank_you = assistant_has_closing_thanks(assistant_message)
             has_any_action_bullets = assistant_has_any_call_to_action_content(assistant_message)
 
-            # ✅ Trigger on closing thank-you + minimal CTA content
             if has_thank_you and has_any_action_bullets:
                 st.session_state.current_step = 5
                 st.session_state.step_requirements_met[4] = True
 
-                # ✅ IMMEDIATELY APPEND FINISH CODE
                 assistant_message += (
                     f"\n\n---\n\n✅ **Your finish code is: {st.session_state.finish_code}**"
                     "\n\nPlease save this code to continue with the survey."
@@ -592,7 +653,6 @@ if (
                 st.session_state.finished = True
                 st.session_state.step_requirements_met[5] = True
 
-                # ✅ SAVE FULL CONVERSATION IMMEDIATELY
                 if not st.session_state.saved:
                     final_messages = st.session_state.messages + [
                         {"role": "assistant", "content": assistant_message}
@@ -617,5 +677,4 @@ if (
         assistant_message,
     )
 
-    # Rerun to update UI
     st.rerun()
