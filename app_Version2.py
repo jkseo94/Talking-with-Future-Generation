@@ -69,7 +69,7 @@ def check_user_intent(client, user_message, expected_intent):
     """
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1",
             messages=[
                 {"role": "system", "content": "You are an intent classifier. Respond with only 'YES' or 'NO'."},
                 {
@@ -539,7 +539,7 @@ if (
         # Call OpenAI API
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4.1",
                 messages=messages_for_api,
                 temperature=0.8,
             )
