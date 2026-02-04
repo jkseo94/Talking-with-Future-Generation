@@ -200,7 +200,7 @@ def assistant_has_closing_thanks(text: str) -> bool:
     """
     t = (text or "").lower()
     return (
-        ("thank" in t) or ("thanks" in t) or
+        ("thank" in t) or ("thanks" in t)
     )
 
 
