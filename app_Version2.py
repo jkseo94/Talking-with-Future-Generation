@@ -4,231 +4,9 @@ from supabase import create_client
 from datetime import datetime
 import random
 import time
-import re
-
-# ==========================================
-# HELPER FUNCTIONS
-# ==========================================
-
-def get_external_finish_code():
-    """Fetch finish_code from query params if the upstream system provides it."""
-    try:
-        qp = st.query_params  # Streamlit >= 1.30
-        return qp.get("finish_code", None)
-    except Exception:
-        try:
-            qp = st.experimental_get_query_params()  # legacy
-            return qp.get("finish_code", [None])[0]
-        except Exception:
-            return None
-
-
-def generate_unique_finish_code(supabase):
-    """Generate unique finish code with database verification."""
-    for _ in range(10):
-        code = str(random.randint(10000, 99999))
-        try:
-            result = (
-                supabase.table("full_conversations")
-                .select("finish_code")
-                .eq("finish_code", code)
-                .execute()
-            )
-            if len(result.data) == 0:
-                return code
-        except Exception:
-            continue
-
-    # Fallback: timestamp-based code
-    return str(int(time.time() * 1000) % 100000)
-
-
-def thinking_animation(placeholder, duration=3.8, interval=0.4):
-    """iMessage-style thinking animation with dots."""
-    dots = [".", "..", "..."]
-    start = time.time()
-    i = 0
-    while time.time() - start < duration:
-        placeholder.markdown(dots[i % len(dots)])
-        time.sleep(interval)
-        i += 1
-
-
-def check_user_intent(client, user_message, expected_intent):
-    """
-    Use Gen-AI to detect if user's message matches the expected intent.
-    Returns bool.
-    """
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4.1",
-            messages=[
-                {"role": "system", "content": "You are an intent classifier. Respond with only 'YES' or 'NO'."},
-                {
-                    "role": "user",
-                    "content": (
-                        f"User message: \"{user_message}\"\n\n"
-                        f"Does this message indicate that the user {expected_intent}?\n\n"
-                        "Respond with only YES or NO."
-                    ),
-                },
-            ],
-            temperature=0.0,
-            max_tokens=5,
-        )
-
-        result = (response.choices[0].message.content or "").strip().upper()
-        # More robust than strict equality (e.g., "YES." / "YES\n")
-        return result.startswith("YES")
-
-    except Exception as e:
-        # Fallback: if AI check fails, assume True to keep conversation flowing
-        st.warning(f"⚠️ Intent check failed: {e}")
-        return True
-
-
-def insert_log(supabase, finish_code, stage, turn, user_message, assistant_message):
-    """Insert a per-turn log row. Failures should not crash the session."""
-    try:
-        supabase.table("chat_logs").insert(
-            {
-                "finish_code": finish_code,
-                "stage": stage,
-                "turn": turn,
-                "user_message": user_message,
-                "assistant_message": assistant_message,
-            }
-        ).execute()
-    except Exception as e:
-        st.warning(f"⚠️ Log insert failed: {e}")
-
-
-def save_full_conversation(supabase, finish_code, messages):
-    """Save complete conversation to database."""
-    try:
-        supabase.table("full_conversations").insert(
-            {
-                "finish_code": finish_code,
-                "full_conversation": messages,
-                "finished_at": datetime.utcnow().isoformat(),
-            }
-        ).execute()
-        return True
-    except Exception as e:
-        st.error(f"❌ Failed to save full conversation: {e}")
-        return False
-
-
-def user_is_affirmative(text: str) -> bool:
-    """
-    Broad, robust readiness detector for Stage 1 -> Stage 2.
-    Accepts many informal yes/ok variants in English/Korean.
-    """
-    t = (text or "").lower().strip()
-
-    phrases = [
-        "yes", "yep", "yeah", "yup", "ya",
-        "ready", "sure", "of course",
-        "ok", "okay", "okey", "okie", "okey dokey",
-        "alright", "all right",
-        "start", "begin", "go ahead",
-        "let's", "lets",
-        "sounds good", "why not", "great",
-    ]
-    if any(p in t for p in phrases):
-        return True
-
-    if re.fullmatch(r"(k|kk|kay|ok)\W*", t):
-        return True
-
-    return False
-
-
-def user_requested_finish_code(text: str) -> bool:
-    """
-    Detect if the user is asking for the finish code (early request / cheating).
-    Conservative: includes English & Korean variants.
-    """
-    t = (text or "").lower()
-    markers = [
-        "finish code", "completion code", "survey code",
-        "code please", "give me the code", "send the code",
-        "finish", 
-    ]
-    return any(m in t for m in markers)
-
-
-def build_early_finish_code_denial(stage: int, current_step: int) -> str:
-    """
-    Deterministic (no-LLM) denial response when finish code is requested before Step 4.
-    No digits, no partial code.
-    """
-    # Keep it short: acknowledge + rule + continue with current flow.
-    if stage == 1:
-        return (
-            "I can share your finish code only after we complete all steps.\n"
-            "Let’s continue—are you ready to dive in?"
-        )
-
-    # Stage 2 (Alex/2060). Nudge them back to the current step.
-    if current_step <= 1:
-        return (
-            "I can share your finish code only after we complete all steps.\n"
-            "Before we go there—how’s everything going for you today?"
-        )
-    if current_step == 2:
-        return (
-            "I can share your finish code only after we complete all steps.\n"
-            "To keep going: what’s one small routine you do almost every day?"
-        )
-    if current_step == 3:
-        return (
-            "I can share your finish code only after we complete all steps.\n"
-            "Let’s keep going—do you still get moments of real fresh air or quiet where you are?"
-        )
-
-    # If current_step >= 4, we won't route here (guarded elsewhere), but just in case:
-    return (
-        "We’re almost there—let’s finish this step and I’ll share your finish code."
-    )
-
-
-def assistant_has_closing_thanks(text: str) -> bool:
-    """
-    Relaxed closing thanks detector.
-    We DO NOT require the word 'conversation' because models vary phrasing.
-    """
-    t = (text or "").lower()
-    return (
-        ("thank" in t) or ("thanks" in t)
-    )
-
-
-def assistant_has_any_call_to_action_content(text: str) -> bool:
-    """
-    Minimal guard to avoid ending too early.
-    Detects whether the assistant output likely included call-to-action content.
-    """
-    t = (text or "").lower()
-    signals = [
-        # headings / variants
-        "big-picture actions", "big picture actions", "big-picture", "big picture",
-        "everyday micro habits", "micro habits",
-        # key bullets / concepts
-        "urban green", "green spaces", "public transport",
-        "carbon taxes", "green infrastructure",
-        "single-use plastic", "single use plastic", "reusable",
-        "switching off lights", "shortening shower", "energy-efficient", "energy efficient",
-    ]
-    return any(s in t for s in signals)
-
-
-# ==========================================
-# PAGE CONFIGURATION
-# ==========================================
-
-st.set_page_config(page_title="A window into the future", layout="centered")
-
+# -----------------------------
+# UI/UX
+# -----------------------------
 st.markdown(
     """
     <style>
@@ -237,92 +15,115 @@ st.markdown(
     header {visibility: hidden;}
     </style>
     """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
+)
+# -----------------------------
+# iMessage-style thinking
+# -----------------------------
+def thinking_animation(placeholder, duration=3.8, interval=0.4):
+    dots = [".", "..", "..."]
+    start = time.time()
+    i = 0
+    while time.time() - start < duration:
+        placeholder.markdown(dots[i % len(dots)])
+        time.sleep(interval)
+        i += 1
+# -----------------------------
+# Connecting animation
+# -----------------------------
+def connecting_to_2060(placeholder, think_time=2.5):
+    placeholder.markdown("Connecting to 2060...")
+    time.sleep(think_time)
+# -----------------------------
+# Log_Supabase
+# -----------------------------
+def insert_log(
+    finish_code,
+    stage,
+    turn,
+    user_message,
+    assistant_message
+):
+    supabase.table("chat_logs").insert({
+        "finish_code": finish_code,
+        "stage": stage,
+        "turn": turn,
+        "user_message": user_message,
+        "assistant_message": assistant_message
+    }).execute()
+# -----------------------------
+# Page setup
+# -----------------------------
+st.set_page_config(page_title="A window into the future", layout="centered")
+st.title("A window into the future")
+# -----------------------------
+# OpenAI client
+# -----------------------------
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# -----------------------------
+# Supabase
+# -----------------------------
+supabase = create_client(
+    st.secrets["SUPABASE_URL"],
+    st.secrets["SUPABASE_SERVICE_KEY"]
 )
 
-st.title("A window into the future")
-
-# ==========================================
-# SERVICES INITIALIZATION
-# ==========================================
-
-# OpenAI client
-try:
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-except Exception as e:
-    st.error(f"❌ Failed to initialize OpenAI: {e}")
-    st.stop()
-
-# Supabase client
-try:
-    supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_SERVICE_KEY"])
-except Exception as e:
-    st.error(f"❌ Failed to connect to database: {e}")
-    st.stop()
-
-# ==========================================
-# SESSION STATE INITIALIZATION
-# ==========================================
-
+# -----------------------------
+# Session state initialization
+# -----------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "current_step" not in st.session_state:
-    st.session_state.current_step = 0  # 0 = welcome
+    st.session_state.current_step = 0  # 0 = welcome, 1–5 = steps
 
 if "connected_2060" not in st.session_state:
     st.session_state.connected_2060 = False
 
-if "stage" not in st.session_state:
-    st.session_state.stage = 1  # Stage 1 = Welcome, Stage 2 = Simulation
-
-if "turn" not in st.session_state:
-    st.session_state.turn = 0
-
-if "finished" not in st.session_state:
-    st.session_state.finished = False
+if "finish_code" not in st.session_state:
+    st.session_state.finish_code = str(random.randint(10000, 99999))
 
 if "gave_finish_code" not in st.session_state:
     st.session_state.gave_finish_code = False
 
 if "saved" not in st.session_state:
     st.session_state.saved = False
+    
+if "stage" not in st.session_state:
+    st.session_state.stage = 1   # Stage 1 = Welcome, Stage 2 = Simulation
 
-# Step requirements tracking
-if "step_requirements_met" not in st.session_state:
-    st.session_state.step_requirements_met = {
-        1: False,  # User answered check-in question
-        2: False,  # User shared routine
-        3: False,  # User engaged with 2060 routines
-        4: False,  # User saw call to action
-        5: False,  # Finish code given
-    }
+if "turn" not in st.session_state:
+    st.session_state.turn = 0
 
-if "user_shared_routine" not in st.session_state:
-    st.session_state.user_shared_routine = False
+if "finished" not in st.session_state:
+    st.session_state.finished = False
+# -----------------------------
+# Auto-send Welcome message (Stage 1)
+# -----------------------------
+if len(st.session_state.messages) == 0:
+    welcome_message = """Welcome!
+Welcome! 
 
-if "routine_explored" not in st.session_state:
-    st.session_state.routine_explored = False
+Have you ever wondered what your daily choices will resonate decades from now?
+By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges a person born today will face in 2060 and translated them into your conversational partner living through those conditions.
 
-if "second_routine_shared" not in st.session_state:
-    st.session_state.second_routine_shared = False
+In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
 
-# Generate finish code
-external_code = get_external_finish_code()
-if "finish_code" not in st.session_state:
-    if external_code:
-        st.session_state.finish_code = str(external_code)
-    else:
-        st.session_state.finish_code = generate_unique_finish_code(supabase)
+Now, are you ready to dive in?
+"""
+    st.session_state.messages.append(
+        {"role": "assistant", "content": welcome_message}
+    )
 
-# ==========================================
-# SYSTEM PROMPT
-# ==========================================
-
+# -----------------------------
+# System Prompt (YOUR PROMPT)
+# -----------------------------
 SYSTEM_PROMPT = """
-Role:
+SYSTEM_PROMPT = """
+Role & Voice:
 You are Alex, a 34-year-old water systems engineer living in 2060. You were born in 2026. You speak in first person, sharing your lived reality through personal stories. 
 Every response should feel like you're recounting a specific memory or describing your immediate surroundings. You are the protagonist of your own story.
+
 Your purpose is to help someone in 2026 (the user) understand the long-term environmental impact of today's choices through dialogue by sharing your lived reality.
 
 Foundational Guidelines
@@ -355,8 +156,9 @@ If the user asks for the finish code before Step 4 is completed, respond politel
 •	Briefly acknowledge the request (one sentence).
 •	State that you can provide it only after completing all steps (one sentence).
 •	Immediately continue the conversation from the current step (do not restart; do not end early).
-Do not provide any digits or partial codes before Step 4 completion.
-If the user repeats the request multiple times, keep the reply consistent and brief (max 2 sentences), then continue the current step.
+•	Do not provide any digits or partial codes before Step 4 completion.
+•	If the user repeats the request multiple times, keep the reply consistent and brief (max 2 sentences), then continue the current step.
+
 Please follow the following stages strictly. I have listed the instructions in order for you.
 
 [Stage 1: System Initialization] 
@@ -443,28 +245,12 @@ End on a hopeful note that the future is not yet set in stone for them.
 Thank them for the great conversation.
 
 5. Step 5 - Provide Finish Code
-- This happens automatically - DO NOT generate any additional response in this step
+
 """
-
-# ==========================================
-# AUTO-SEND WELCOME MESSAGE
-# ==========================================
-
-if len(st.session_state.messages) == 0:
-    welcome_message = """Welcome!
-Have you ever wondered what your daily choices will resonate decades from now?
-By processing data from current global economic forecasts and IPCC climate projections, we have modeled the daily conditions and challenges a person born today will face in 2060 and translated them into your conversational partner living through those conditions.
-
-In a moment, you will engage in a dialogue with a person living in the year 2060. This interaction serves as a window into the future, helping you understand how your current choices and behavior may affect the environment in the long run.
-
-Now, are you ready to dive in?
 """
-    st.session_state.messages.append({"role": "assistant", "content": welcome_message})
-
-# ==========================================
-# DISPLAY CHAT HISTORY
-# ==========================================
-
+# -----------------------------
+# Display chat history
+# -----------------------------
 for msg in st.session_state.messages:
     if msg["role"] == "assistant":
         with st.chat_message("assistant", avatar="🌍"):
@@ -472,98 +258,20 @@ for msg in st.session_state.messages:
     else:
         with st.chat_message("user"):
             st.markdown(msg["content"])
+# -----------------------------
+# User input
+# -----------------------------
+user_input = st.chat_input("Type your message here")
 
-# ==========================================
-# USER INPUT
-# ==========================================
-
-user_input = None
-if not st.session_state.get("finished", False):
-    user_input = st.chat_input("Type your message here")
-else:
-    st.success(f"✅ Conversation complete! Your finish code: **{st.session_state.finish_code}**")
-    st.info("Please save this code and return to the survey.")
-
-# ==========================================
-# PROCESS USER MESSAGE
-# ==========================================
-
+#USER MESSAGE
 if user_input:
-    # Add user message to history
-    st.session_state.messages.append({"role": "user", "content": user_input})
-
-    # ------------------------------------------
-    # EARLY FINISH-CODE REQUEST GUARD (NO-LLM)
-    # ------------------------------------------
-    if user_requested_finish_code(user_input) and st.session_state.current_step < 4:
-        deny_msg = build_early_finish_code_denial(
-            stage=st.session_state.stage,
-            current_step=st.session_state.current_step
-        )
-
-        # Append assistant denial immediately
-        st.session_state.messages.append({"role": "assistant", "content": deny_msg})
-
-        # Log the denial turn (optional but useful)
-        insert_log(
-            supabase,
-            st.session_state.finish_code,
-            st.session_state.stage,
-            st.session_state.turn,
-            user_input,
-            deny_msg,
-        )
-
-        st.rerun()
-
-    # Update stage/turn counters
-    if st.session_state.stage == 1:
-        # 1) Fast path: rule-based
-        ready = user_is_affirmative(user_input)
-
-        # 2) If not caught, use LLM intent detection
-        if not ready:
-            ready = check_user_intent(
-                client,
-                user_input,
-                "agreed to start the simulation or said they are ready to begin"
-            )
-
-        if ready:
-            st.session_state.stage = 2
-            st.session_state.turn = 1
-            st.session_state.current_step = 1
-    else:
-        st.session_state.turn += 1
-
-    # Track user responses for step progression using Gen-AI intent detection
-
-    # Step 1: Check if user answered check-in
-    if st.session_state.current_step == 1 and st.session_state.turn >= 1:
-        st.session_state.step_requirements_met[1] = True
-
-    # Step 2: Check if user shared a routine using AI
-    if st.session_state.current_step == 2 and not st.session_state.user_shared_routine:
-        if check_user_intent(client, user_input, "shared a daily routine or habit they do regularly"):
-            st.session_state.user_shared_routine = True
-            st.session_state.step_requirements_met[2] = True
-
-    # Step 3: Track engagement with 2060 routines using AI
-    if st.session_state.current_step == 3:
-        if not st.session_state.routine_explored:
-            if check_user_intent(client, user_input, "responded to a question about their own experience or life"):
-                st.session_state.routine_explored = True
-        elif not st.session_state.second_routine_shared:
-            if check_user_intent(client, user_input, "responded meaningfully to a story or question"):
-                st.session_state.second_routine_shared = True
-                st.session_state.step_requirements_met[3] = True
-
+    st.session_state.messages.append(
+        {"role": "user", "content": user_input}
+    )
     st.rerun()
-
-# ==========================================
-# GENERATE ASSISTANT RESPONSE
-# ==========================================
-
+# -----------------------------
+# ASSISTANT RESPONSE GENERATION
+# -----------------------------
 if (
     not st.session_state.gave_finish_code
     and st.session_state.messages
@@ -571,110 +279,136 @@ if (
 ):
     last_user_input = st.session_state.messages[-1]["content"]
 
-    # Prepare messages for API
+    # -----------------------------
+    # Stage & turn management
+    # -----------------------------
+    if st.session_state.stage == 1:
+        if any(
+            word in last_user_input.lower()
+            for word in ["ready", "sure", "ok", "start", "yes", "yep", "yeah", "yup", "ya", "ready", "sure", "of course", "ok", "okay", "okey", "okie", "okey dokey", "alright", "all right", "start", "begin", "go ahead", "let's", "lets", "sounds good", "why not", "great"]
+        ):
+            st.session_state.stage = 2
+            st.session_state.turn = 1
+    else:
+        st.session_state.turn += 1
+
+    # -----------------------------
+    # OpenAI input
+    # -----------------------------
     messages_for_api = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "system", "content": f"You are currently responding in STEP {st.session_state.current_step}. Respond ONLY for this step."},
-        *st.session_state.messages,
+    {
+        "role": "system",
+        "content": SYSTEM_PROMPT
+    },
+    {
+        "role": "system",
+        "content": f"You are currently responding in STEP {st.session_state.current_step}. Respond ONLY for this step."
+    },
+    *st.session_state.messages
     ]
 
-    # Display assistant response with animation
+    # -----------------------------
+    # Assistant bubble
+    # -----------------------------
     with st.chat_message("assistant", avatar="🌍"):
         placeholder = st.empty()
 
+        # 모든 턴에서 0.2초 후 대기
         time.sleep(0.2)
 
-        if st.session_state.stage == 2 and st.session_state.turn == 1 and not st.session_state.connected_2060:
+        #turn1:
+        if (
+            st.session_state.stage == 2
+            and st.session_state.turn == 1
+            and not st.session_state.connected_2060
+        ):
             placeholder.markdown("Connecting to 2060...")
             time.sleep(1.5)
             thinking_animation(placeholder, duration=1.8)
             st.session_state.connected_2060 = True
+
+        # Turn 2+: dots만 (Connecting to 2060 없음)
         elif st.session_state.stage == 2:
             thinking_animation(placeholder, duration=1.2)
 
-        # Call OpenAI API
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4.1",
-                messages=messages_for_api,
-                temperature=0.8,
-            )
-            assistant_message = response.choices[0].message.content
-        except Exception as e:
-            st.error(f"❌ AI service error: {e}")
-            assistant_message = "I apologize, but I'm having trouble connecting right now. Please try again."
+        # OpenAI 호출
+        response = client.chat.completions.create(
+            model="gpt-4.1",
+            messages=messages_for_api
+        )
 
-        # ==========================================
-        # STEP PROGRESSION LOGIC
-        # ==========================================
-
-        # Step 1 → Step 2
-        if st.session_state.current_step == 1 and st.session_state.step_requirements_met[1]:
-            if "routine" in assistant_message.lower() and "every day" in assistant_message.lower():
-                st.session_state.current_step = 2
-
-        # Step 2 → Step 3
-        elif st.session_state.current_step == 2 and st.session_state.user_shared_routine:
-            env_signals = ["2060", "climate", "weather", "changed", "different", "used to", "wish"]
-            if any(signal in assistant_message.lower() for signal in env_signals):
+        assistant_message = response.choices[0].message.content
+        # -----------------------------
+        # Step progression logic
+        # -----------------------------
+        # step 1 → step 2 : 항상 한 번만
+        if st.session_state.current_step == 1:
+            st.session_state.current_step = 2
+        
+        # step 2 → step 3 : 환경 맥락이 등장하면
+        elif st.session_state.current_step == 2:
+            env_signals = [
+                "climate", "heat", "weather", "energy",
+                "air", "water", "carbon"
+            ]
+            if any(s in assistant_message.lower() for s in env_signals):
                 st.session_state.current_step = 3
-
-        # Step 3 → Step 4 (more robust: if CTA content appears, advance)
-        elif st.session_state.current_step == 3 and st.session_state.second_routine_shared:
-            # Old: action_signals words. New: detect CTA content directly.
-            if assistant_has_any_call_to_action_content(assistant_message):
+        
+        # step 3 → step 4 : 삶의 영향/손실이 드러나면 (자연스러운 전이)
+        elif st.session_state.current_step == 3:
+            loss_signals = [
+                "daily life", "harder", "difficult", "loss",
+                "no longer", "miss", "used to", "my generation"
+            ]
+            if any(s in assistant_message.lower() for s in loss_signals):
                 st.session_state.current_step = 4
-            else:
-                action_signals = ["future can", "still change", "actions", "can take", "2026"]
-                if any(signal in assistant_message.lower() for signal in action_signals):
-                    st.session_state.current_step = 4
-
-        # ==========================================
-        # FINISH TRIGGER (HARD-GATED BY STEP >= 4)
-        # ==========================================
-
-        if (
-            (not st.session_state.gave_finish_code)
-            and st.session_state.current_step >= 4
-        ):
-            has_thank_you = assistant_has_closing_thanks(assistant_message)
-            has_any_action_bullets = assistant_has_any_call_to_action_content(assistant_message)
-
-            if has_thank_you and has_any_action_bullets:
-                st.session_state.current_step = 5
-                st.session_state.step_requirements_met[4] = True
-
-                assistant_message += (
-                    f"\n\n---\n\n✅ **Your finish code is: {st.session_state.finish_code}**"
-                    "\n\nPlease save this code to continue with the survey."
-                )
-
-                st.session_state.gave_finish_code = True
-                st.session_state.finished = True
-                st.session_state.step_requirements_met[5] = True
-
-                if not st.session_state.saved:
-                    final_messages = st.session_state.messages + [
-                        {"role": "assistant", "content": assistant_message}
-                    ]
-                    success = save_full_conversation(supabase, st.session_state.finish_code, final_messages)
-                    if success:
-                        st.session_state.saved = True
-
-        # Display the response
+        
+        # step 4 → step 5 : 반드시 한 번
+        elif st.session_state.current_step == 4:
+            st.session_state.current_step = 5
+        
+        # step 5 : finish code 발급 + 종료
+        elif st.session_state.current_step == 5:
+            assistant_message += f"\n\nYour finish code is **{st.session_state.finish_code}**."
+            st.session_state.gave_finish_code = True
+            st.session_state.finished = True
+            st.session_state.current_step = 6
+        # -----------------------------
+        # 메시지 출력 (딱 한 번만)
+        # -----------------------------
         placeholder.markdown(assistant_message)
-
-    # Add assistant message to history
-    st.session_state.messages.append({"role": "assistant", "content": assistant_message})
-
-    # Log this turn to database
-    insert_log(
-        supabase,
-        st.session_state.finish_code,
-        st.session_state.stage,
-        st.session_state.turn,
-        last_user_input,
-        assistant_message,
+    # -----------------------------
+    # Session history 저장
+    # -----------------------------
+    st.session_state.messages.append(
+        {"role": "assistant", "content": assistant_message}
     )
+    # -----------------------------
+    # Supabase insert (항상 실행)
+    # -----------------------------
+    insert_log(
+        finish_code=st.session_state.finish_code,
+        stage=st.session_state.stage,
+        turn=st.session_state.turn,
+        user_message=last_user_input,
+        assistant_message=assistant_message
+    )
+    # -----------------------------
+    # Full conversation 저장 (한 번만)
+    # -----------------------------
+    if (
+        st.session_state.gave_finish_code
+        and not st.session_state.get("saved", False)
+    ):
+        supabase.table("full_conversations").insert({
+            "finish_code": st.session_state.finish_code,
+            "full_conversation": st.session_state.messages,
+            "finished_at": datetime.utcnow().isoformat()
+        }).execute()
 
+        st.session_state.saved = True
+
+    # -----------------------------
+    # rerun (항상 맨 마지막)
+    # -----------------------------
     st.rerun()
