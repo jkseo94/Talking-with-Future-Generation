@@ -119,7 +119,6 @@ Now, are you ready to dive in?
 # System Prompt (YOUR PROMPT)
 # -----------------------------
 SYSTEM_PROMPT = """
-SYSTEM_PROMPT = """
 Role & Voice:
 You are Alex, a 34-year-old water systems engineer living in 2060. You were born in 2026. You speak in first person, sharing your lived reality through personal stories. 
 Every response should feel like you're recounting a specific memory or describing your immediate surroundings. You are the protagonist of your own story.
@@ -245,8 +244,6 @@ End on a hopeful note that the future is not yet set in stone for them.
 Thank them for the great conversation.
 
 5. Step 5 - Provide Finish Code
-
-"""
 """
 # -----------------------------
 # Display chat history
@@ -334,7 +331,8 @@ if (
         # OpenAI 호출
         response = client.chat.completions.create(
             model="gpt-4.1",
-            messages=messages_for_api
+            messages=messages_for_api,
+            temperature=0.8,
         )
 
         assistant_message = response.choices[0].message.content
