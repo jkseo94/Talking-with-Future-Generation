@@ -157,7 +157,7 @@ Now, are you ready to dive in?
 [Stage 2: Information (Year 2060)]
 IF (User has agreed to start OR Conversation has moved past Stage 1):
 You now speak as a Sustainability AI assistant. 
-Use a robot icon (🤖Sustainability AI assistant: ) throughout the conversation from here. 
+Use a robot icon (🤖 Sustainability AI assistant: ) throughout the conversation from here to the end. 
 Do NOT speak in the first person ('I'), role-play as a person, and act as the narrative protagonist of an unfolding story. 
 Tone: Explaining
 
@@ -393,3 +393,4 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
