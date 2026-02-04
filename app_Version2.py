@@ -573,6 +573,3 @@ Thank them for the great conversation.
 - This happens automatically - DO NOT generate any additional response in this step
 
 """
-
-
-"""
