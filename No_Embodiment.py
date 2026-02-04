@@ -29,12 +29,6 @@ def thinking_animation(placeholder, duration=3.8, interval=0.4):
         time.sleep(interval)
         i += 1
 # -----------------------------
-# Connecting animation
-# -----------------------------
-def connecting_to_2060(placeholder, think_time=2.5):
-    placeholder.markdown("Connecting to 2060...")
-    time.sleep(think_time)
-# -----------------------------
 # Log_Supabase
 # -----------------------------
 def insert_log(
@@ -76,9 +70,6 @@ if "messages" not in st.session_state:
 
 if "current_step" not in st.session_state:
     st.session_state.current_step = 0  # 0 = welcome, 1–5 = steps
-
-if "connected_2060" not in st.session_state:
-    st.session_state.connected_2060 = False
 
 if "finish_code" not in st.session_state:
     st.session_state.finish_code = str(random.randint(10000, 99999))
@@ -295,21 +286,7 @@ if (
 
         # 모든 턴에서 0.2초 후 대기
         time.sleep(0.2)
-
-        #turn1:
-        if (
-            st.session_state.stage == 2
-            and st.session_state.turn == 1
-            and not st.session_state.connected_2060
-        ):
-            placeholder.markdown("Connecting to 2060...")
-            time.sleep(1.5)
-            thinking_animation(placeholder, duration=1.8)
-            st.session_state.connected_2060 = True
-
-        # Turn 2+: dots만 (Connecting to 2060 없음)
-        elif st.session_state.stage == 2:
-            thinking_animation(placeholder, duration=1.2)
+        thinking_animation(placeholder, duration=1.2)
 
         # OpenAI 호출
         response = client.chat.completions.create(
@@ -393,4 +370,5 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
