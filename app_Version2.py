@@ -101,7 +101,7 @@ if "finished" not in st.session_state:
 # Auto-send Welcome message (Stage 1)
 # -----------------------------
 if len(st.session_state.messages) == 0:
-    welcome_message = """Welcome!
+    welcome_message = """
 Welcome! 
 
 Have you ever wondered what your daily choices will resonate decades from now?
