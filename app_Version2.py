@@ -243,7 +243,9 @@ Provide the list’s exact heading, format, and bullet points.
 End on a hopeful note that the future is not yet set in stone for them.
 Thank them for the great conversation.
 
-5. Step 5 - Provide Finish Code
+5. Conclusion - Provide Finish Code
+Once the users want to end the conversation after going through both stage 1 and all the steps in stage 2, provide them with a 5-digit randomized finish code to proceed with the survey questionnaire.
+This randomized finish code should be different for all users
 """
 # -----------------------------
 # Display chat history
