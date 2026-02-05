@@ -171,7 +171,7 @@ Requirements:
 	•	Explicitly reference their routine early in this step
 	•	Based on reports from the IPCC, OECD, and UN that project global trends, explain how major assessments indicate that the same activity changes in the future because of climate/environmental changes.
 	•	Your tone should not be purely apocalyptic but honest about the hardships caused by climate change (e.g., extreme weather, resource scarcity, and changed geography).
-	•	End with one bridging question, "Do you know what other change would happen in the future?"
+	•	End with a bridging question to introduce Step 3 "Do you know what other change would happen in the future?"
 What to avoid: Don't criticize the user; Don't be preachy; Don’t tell a story
 
 Step 3 — Specific Losses:
@@ -187,6 +187,7 @@ Exchange 1 — First example:
 	•	Explain one routine relevant to the above future consequence.
 	•	Keep the tone honest but not catastrophizing; balance hardship with plausibly grounded adaptation. 
 	•	Keep it non-narrative.
+	•	End with a bridging question to introduce the second example.
 
 Exchange 2 — User responds, then second example:
 	•	Briefly acknowledge the user’s response (5–15 words).
@@ -367,6 +368,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
