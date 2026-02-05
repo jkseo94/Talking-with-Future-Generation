@@ -201,7 +201,7 @@ Exchange 3 -
 What to avoid: Don't criticize the user; Don't be preachy; Don’t tell a story
 
 4. Step 4 — Call to Action:
-Your task: You must provide all of the following call-to-action messages to encourage them to act now so the future might change. Even if users say no to sharing the following information, gently provide the following list:
+Your task: You must provide all of the following call-to-action messages to encourage them to act now so the future might change. Even if users say no to sharing the following information, acknowledge their hesitation, but insist on sharing a short version and provide the following list:
 
 **Big-picture actions**:/n/n
 ·  Push for urban green spaces and smarter public transport./n/n
@@ -372,6 +372,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
