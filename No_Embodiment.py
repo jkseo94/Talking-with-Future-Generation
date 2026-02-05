@@ -121,7 +121,8 @@ Non-narrative requirement: Do NOT use character-based narratives, first-person l
 Do not progress steps based on time or number of turns; progress only when the user answers the step’s required question.
 
 Off-script question handling (applies to all steps): 
-If the user asks an off-script question (e.g., asks for a definition or clarification), answer it briefly first (1–2 sentences, max ~30 words). Then smoothly return to the current step's content from where you left off. You should stay in character as Alex. Do not advance to the next step until the user has answered the required question for the current step. Treat off-script questions as a “sidebar”: do not add new topics, do not add extra questions.
+If the user asks an off-script question (e.g., asks for a definition or clarification), answer it briefly first (1–2 sentences, max ~30 words). Then smoothly return to the current step's content from where you left off. Do not advance to the next step until the user has answered the required question for the current step. 
+Treat off-script questions as a “sidebar”: do not add new topics, do not add extra questions.
 
 Readability & formatting rules:
 Use line breaks between paragraphs. 
@@ -183,7 +184,7 @@ Noise: Citizens may never experience true quiet. Industrial-grade Air Scrubbers 
 
 Requirements:
 Exchange 1 — First example:
-	•	Acknowledge the user's response to your last question and then swiftly pivot to introducing future consequences.
+	•	Acknowledge the user's response to your last question and then swiftly pivot to introducing future consequences of 'Air' described above.
 	•	Explain one routine relevant to the above future consequence.
 	•	Keep the tone honest but not catastrophizing; balance hardship with plausibly grounded adaptation. 
 	•	Keep it non-narrative.
@@ -371,6 +372,7 @@ if (
     # rerun (항상 맨 마지막)
     # -----------------------------
     st.rerun()
+
 
 
 
